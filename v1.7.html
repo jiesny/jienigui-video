@@ -165,7 +165,7 @@
                     <button @click="viewMode='category'" class="text-xs text-rose-300 hover:text-rose-200">全部分类</button>
                 </div>
                 <div class="safe-scroll-x flex gap-2 pb-1">
-                    <button v-for="cat in visibleCategories" :key="cat.id" @click="openCategory(cat)"
+                    <button v-for="cat in visibleCategories" :key="cat.key" @click="openCategory(cat)"
                         class="shrink-0 px-3 py-2 rounded-lg bg-zinc-900 border border-white/10 text-sm text-zinc-300 hover:border-rose-500 hover:text-white">
                         {{ cat.name }}
                     </button>
@@ -225,7 +225,7 @@
             <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
                 <div>
                     <h1 class="text-2xl font-black">{{ selectedCategory ? selectedCategory.name : '分类浏览' }}</h1>
-                    <p class="text-sm text-zinc-500 mt-1">按当前采集源分类浏览内容。</p>
+                    <p class="text-sm text-zinc-500 mt-1">已将不同采集源的小分类统一映射为大类。</p>
                 </div>
                 <select v-model="activeSourceId" @change="handleSourceSwitch" class="bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none">
                     <option v-for="source in sources" :key="source.id" :value="source.id" class="bg-zinc-950">{{ source.name }}</option>
@@ -234,8 +234,8 @@
 
             <div class="safe-scroll-x flex gap-2 pb-1">
                 <button @click="openCategory(null)" :class="['shrink-0 px-3 py-2 rounded-lg text-sm border', !selectedCategory ? 'bg-rose-600 border-rose-500' : 'bg-zinc-900 border-white/10 text-zinc-300']">全部</button>
-                <button v-for="cat in presetCategories" :key="cat.id" @click="openCategory(cat)"
-                    :class="['shrink-0 px-3 py-2 rounded-lg text-sm border', selectedCategory?.id === cat.id ? 'bg-rose-600 border-rose-500' : 'bg-zinc-900 border-white/10 text-zinc-300 hover:text-white']">
+                <button v-for="cat in visibleCategories" :key="cat.key" @click="openCategory(cat)"
+                    :class="['shrink-0 px-3 py-2 rounded-lg text-sm border', selectedCategory?.key === cat.key ? 'bg-rose-600 border-rose-500' : 'bg-zinc-900 border-white/10 text-zinc-300 hover:text-white']">
                     {{ cat.name }}
                 </button>
             </div>
@@ -416,6 +416,18 @@ const DEFAULT_SOURCES = [
     { id: 'source_xigua', name: '西瓜资源', url: 'https://xgzy.tv/api.php/provide/vod/' }
 ];
 
+const STANDARD_CATEGORIES = [
+    { key: 'movie', name: '电影', aliases: ['电影', '电影片', '动作片', '喜剧片', '爱情片', '科幻片', '恐怖片', '剧情片', '战争片', '惊悚片', '犯罪片', '悬疑片', '冒险片', '奇幻片', '4K电影', 'Netflix电影', '邵氏电影'] },
+    { key: 'series', name: '剧集', aliases: ['电视剧', '连续剧', '国产剧', '大陆剧', '欧美剧', '美剧', '韩剧', '韩国剧', '日剧', '日本剧', '港剧', '香港剧', '台剧', '台湾剧', '泰剧', '海外剧', 'Netflix自制剧'] },
+    { key: 'anime', name: '动漫', aliases: ['动漫', '国产动漫', '日韩动漫', '日本动漫', '欧美动漫', '港台动漫', '海外动漫', '动画片', '有声动漫', '漫剧'] },
+    { key: 'show', name: '综艺', aliases: ['综艺', '大陆综艺', '日韩综艺', '韩国综艺', '港台综艺', '欧美综艺', '演唱会', '真人秀'] },
+    { key: 'short', name: '短剧', aliases: ['短剧', '爽文短剧', '女频恋爱', '反转爽剧', '古装仙侠', '年代穿越', '脑洞悬疑', '现代都市', '擦边短剧'] },
+    { key: 'documentary', name: '纪录', aliases: ['纪录', '纪录片', '记录片', '科普学习'] },
+    { key: 'sports', name: '体育', aliases: ['体育', '体育赛事', '篮球', '足球', '网球', '斯诺克', '赛事'] },
+    { key: 'commentary', name: '解说', aliases: ['解说', '影视解说', '电影解说', '预告片', '预告解说'] },
+    { key: 'variety_other', name: '其他', aliases: ['伦理', '写真热舞', '两性课堂', '资讯', '娱乐新闻'] }
+];
+
 const FALLBACK_POSTER = 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500&auto=format&fit=crop&q=70';
 
 const VideoCard = {
@@ -484,7 +496,10 @@ createApp({
         const lastSearchKeyword = ref('');
         const selectedCategory = ref(null);
         const presetCategories = ref([]);
-        const visibleCategories = computed(() => presetCategories.value.slice(0, 24));
+        const visibleCategories = computed(() => STANDARD_CATEGORIES.map(category => ({
+            ...category,
+            matchedCategories: resolveStandardCategory(category)
+        })).filter(category => category.key === 'variety_other' || category.matchedCategories.length > 0));
         const videos = ref([]);
         const searchResults = ref([]);
         const favoriteVideos = ref([]);
@@ -507,11 +522,7 @@ createApp({
         const hotKeywords = ['庆余年第二季', '完美世界', '凡人修仙传', '哪吒', '暗河传', '唐探1900', '热辣滚烫', '入青云', '长安的荔枝', '神印王座'];
         const topNav = [
             { key: 'home', name: '首页' },
-            { key: 'movie', name: '电影', match: ['电影', '动作片', '喜剧片', '爱情片'] },
-            { key: 'series', name: '连续剧', match: ['电视剧', '国产剧', '欧美剧', '韩剧', '日剧'] },
-            { key: 'anime', name: '动漫', match: ['动漫', '国产动漫', '日韩动漫'] },
-            { key: 'show', name: '综艺纪录', match: ['综艺', '纪录片'] },
-            { key: 'short', name: '短剧', match: ['短剧', '爽文短剧', '女频恋爱'] }
+            ...STANDARD_CATEGORIES.slice(0, 6)
         ];
 
         function triggerToast(message, type = 'info') {
@@ -574,6 +585,20 @@ createApp({
             return `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}${query.toString()}`;
         }
 
+        function resolveStandardCategory(standardCategory) {
+            const aliases = standardCategory.aliases || [];
+            return presetCategories.value.filter(category => aliases.some(alias => category.name.includes(alias) || alias.includes(category.name)));
+        }
+
+        function dedupeVideos(items) {
+            const map = new Map();
+            items.forEach(item => {
+                const key = item.vod_id || `${item.vod_name}-${item.vod_time || ''}`;
+                if (!map.has(key)) map.set(key, item);
+            });
+            return Array.from(map.values());
+        }
+
         async function fetchCategories(source = activeHomeSource.value) {
             try {
                 const data = await fetchWithFallback(apiUrl(source.url, { ac: 'list' }));
@@ -588,6 +613,34 @@ createApp({
             if (options.categoryId) params.t = options.categoryId;
             if (options.keyword) params.wd = options.keyword;
             return fetchWithFallback(apiUrl(source.url, params));
+        }
+
+        async function fetchStandardCategoryList(source, standardCategory, page = 1) {
+            const matched = standardCategory?.matchedCategories || resolveStandardCategory(standardCategory);
+            if (!matched.length) {
+                const data = await fetchList(source, { page });
+                return { ...data, list: [] };
+            }
+
+            const limited = matched.slice(0, 8);
+            const settled = await Promise.allSettled(limited.map(category => fetchList(source, { page, categoryId: category.id })));
+            const list = [];
+            let maxPageCount = 1;
+
+            settled.forEach(result => {
+                if (result.status === 'fulfilled') {
+                    list.push(...(result.value.list || []));
+                    maxPageCount = Math.max(maxPageCount, parseInt(result.value.pagecount) || 1);
+                }
+            });
+
+            return {
+                code: 1,
+                page,
+                pagecount: Math.min(maxPageCount, 100),
+                total: list.length,
+                list: dedupeVideos(list)
+            };
         }
 
         async function localScanSearch(source, keyword) {
@@ -622,9 +675,9 @@ createApp({
         }
 
         async function loadHomeSection(key, names) {
-            const cat = presetCategories.value.find(item => names.some(name => item.name.includes(name)));
+            const standard = STANDARD_CATEGORIES.find(item => names.some(name => item.name.includes(name) || item.aliases.some(alias => alias.includes(name) || name.includes(alias))));
             try {
-                const data = await fetchList(activeHomeSource.value, { page: 1, categoryId: cat?.id });
+                const data = standard ? await fetchStandardCategoryList(activeHomeSource.value, standard, 1) : await fetchList(activeHomeSource.value, { page: 1 });
                 homeSections[key] = (data.list || []).slice(0, 12);
             } catch {
                 homeSections[key] = [];
@@ -742,7 +795,9 @@ createApp({
         async function fetchVideos(page = 1) {
             loading.value = true;
             try {
-                const data = await fetchList(activeHomeSource.value, { page, categoryId: selectedCategory.value?.id });
+                const data = selectedCategory.value?.key
+                    ? await fetchStandardCategoryList(activeHomeSource.value, selectedCategory.value, page)
+                    : await fetchList(activeHomeSource.value, { page });
                 videos.value = data.list || [];
                 totalPages.value = Math.min(parseInt(data.pagecount) || 1, 100);
                 currentPage.value = page;
@@ -766,8 +821,7 @@ createApp({
                 viewMode.value = 'home';
                 return;
             }
-            const cat = presetCategories.value.find(category => item.match?.some(name => category.name.includes(name)));
-            await openCategory(cat || null);
+            await openCategory(item);
         }
 
         async function handleSourceSwitch() {
