@@ -176,10 +176,10 @@
                 </div>
             </section>
 
-            <video-row title="最近更新" :items="homeSections.latest" @open="openDetailFromVideo"></video-row>
-            <video-row title="近期热门电影" :items="homeSections.movies" @open="openDetailFromVideo"></video-row>
-            <video-row title="近期热门剧集" :items="homeSections.series" @open="openDetailFromVideo"></video-row>
-            <video-row title="热播动漫" :items="homeSections.anime" @open="openDetailFromVideo"></video-row>
+            <video-row title="最近更新" :items="homeSections.latest" category-key="" @open="openAggregatedDetail" @more="openCategoryByKey"></video-row>
+            <video-row title="近期热门电影" :items="homeSections.movies" category-key="movie" @open="openAggregatedDetail" @more="openCategoryByKey"></video-row>
+            <video-row title="近期热门剧集" :items="homeSections.series" category-key="series" @open="openAggregatedDetail" @more="openCategoryByKey"></video-row>
+            <video-row title="热播动漫" :items="homeSections.anime" category-key="anime" @open="openAggregatedDetail" @more="openCategoryByKey"></video-row>
         </section>
 
         <section v-else-if="viewMode === 'search'" class="space-y-5">
@@ -250,7 +250,7 @@
                 正在加载内容...
             </div>
             <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                <video-card v-for="video in videos" :key="video.source_id + '-' + video.vod_id" :video="video" @open="openDetailFromVideo(video, findSource(video.source_id))"></video-card>
+                <video-card v-for="video in videos" :key="video.source_id + '-' + video.vod_id" :video="video" @open="openAggregatedDetail(video)"></video-card>
             </div>
             <div class="flex justify-center gap-2 pt-4">
                 <button @click="changePage(currentPage - 1)" :disabled="currentPage <= 1" class="px-4 py-2 rounded-lg bg-zinc-900 border border-white/10 text-sm disabled:opacity-40">上一页</button>
@@ -404,16 +404,28 @@ const DEFAULT_SOURCES = [
 const SOURCE_SCHEMA_VERSION = '2026-05-25-yaya';
 
 const STANDARD_CATEGORIES = [
-    { key: 'movie', name: '电影', aliases: ['电影', '电影片', '动作片', '喜剧片', '爱情片', '科幻片', '恐怖片', '剧情片', '战争片', '惊悚片', '犯罪片', '悬疑片', '冒险片', '奇幻片', '4K电影', 'Netflix电影', '邵氏电影'] },
-    { key: 'series', name: '剧集', aliases: ['电视剧', '连续剧', '国产剧', '大陆剧', '欧美剧', '美剧', '韩剧', '韩国剧', '日剧', '日本剧', '港剧', '香港剧', '台剧', '台湾剧', '泰剧', '海外剧', 'Netflix自制剧'] },
-    { key: 'anime', name: '动漫', aliases: ['动漫', '国产动漫', '日韩动漫', '日本动漫', '欧美动漫', '港台动漫', '海外动漫', '动画片', '有声动漫', '漫剧'] },
-    { key: 'show', name: '综艺', aliases: ['综艺', '大陆综艺', '日韩综艺', '韩国综艺', '港台综艺', '欧美综艺', '演唱会', '真人秀'] },
-    { key: 'short', name: '短剧', aliases: ['短剧', '爽文短剧', '女频恋爱', '反转爽剧', '古装仙侠', '年代穿越', '脑洞悬疑', '现代都市', '擦边短剧'] },
-    { key: 'documentary', name: '纪录', aliases: ['纪录', '纪录片', '记录片', '科普学习'] },
-    { key: 'sports', name: '体育', aliases: ['体育', '体育赛事', '篮球', '足球', '网球', '斯诺克', '赛事'] },
-    { key: 'commentary', name: '解说', aliases: ['解说', '影视解说', '电影解说', '预告片', '预告解说'] },
-    { key: 'variety_other', name: '其他', aliases: ['伦理', '写真热舞', '两性课堂', '资讯', '娱乐新闻'] }
+    { key: 'movie', name: '电影', aliases: ['电影', '电影片', '动作片', '喜剧片', '爱情片', '科幻片', '恐怖片', '剧情片', '战争片', '惊悚片', '犯罪片', '悬疑片', '冒险片', '奇幻片', '4K电影', '蓝光电影', '网络电影', 'Netflix电影', '邵氏电影', '院线', '大片'] },
+    { key: 'series', name: '剧集', aliases: ['电视剧', '连续剧', '国产剧', '大陆剧', '内地剧', '欧美剧', '美剧', '韩剧', '韩国剧', '日剧', '日本剧', '港剧', '香港剧', '台剧', '台湾剧', '泰剧', '海外剧', '英剧', '新马剧', '其他剧', 'Netflix自制剧'] },
+    { key: 'anime', name: '动漫', aliases: ['动漫', '动漫片', '国产动漫', '国漫', '日韩动漫', '日本动漫', '欧美动漫', '港台动漫', '海外动漫', '动画片', '有声动漫', '漫剧', '番剧', '新番'] },
+    { key: 'show', name: '综艺', aliases: ['综艺', '综艺片', '大陆综艺', '内地综艺', '日韩综艺', '韩国综艺', '港台综艺', '欧美综艺', '海外综艺', '演唱会', '真人秀', '晚会', '脱口秀'] },
+    { key: 'short', name: '短剧', aliases: ['短剧', '短视频', '爽文短剧', '女频恋爱', '反转爽剧', '古装仙侠', '年代穿越', '脑洞悬疑', '现代都市', '擦边短剧', '微短剧', '网剧短剧'] },
+    { key: 'documentary', name: '纪录', aliases: ['纪录', '纪录片', '记录片', '纪实', '科普学习', '探索', '人文', '自然'] },
+    { key: 'sports', name: '体育', aliases: ['体育', '体育赛事', '篮球', '足球', '网球', '斯诺克', '赛事', 'NBA', 'CBA', '英超', '西甲', '欧冠'] },
+    { key: 'commentary', name: '解说', aliases: ['解说', '影视解说', '电影解说', '预告片', '预告解说', '影评', '混剪'] },
+    { key: 'variety_other', name: '其他', aliases: ['伦理', '伦理片', '写真热舞', '两性课堂', '资讯', '娱乐新闻', '午夜', '福利'] }
 ];
+
+const CATEGORY_EXCLUDES = {
+    movie: ['电视剧', '连续剧', '国产剧', '欧美剧', '韩剧', '日剧', '港剧', '台剧', '泰剧', '动漫', '综艺', '短剧', '体育', '解说'],
+    series: ['电影片', '动作片', '喜剧片', '爱情片', '科幻片', '恐怖片', '剧情片', '战争片', '动漫', '综艺', '短剧', '纪录', '记录', '体育', '解说'],
+    anime: ['电影解说', '影视解说', '综艺', '短剧', '纪录', '记录', '体育'],
+    show: ['电影片', '电视剧', '连续剧', '动漫', '短剧', '纪录片', '记录片', '体育', '解说'],
+    short: ['电影片', '电视剧', '连续剧', '动漫', '综艺', '纪录', '记录', '体育'],
+    documentary: ['综艺', '动漫', '短剧', '体育', '解说'],
+    sports: ['电影', '电视剧', '连续剧', '动漫', '综艺', '短剧', '纪录', '记录', '解说'],
+    commentary: ['电视剧', '连续剧', '综艺', '短剧', '纪录', '记录', '体育'],
+    variety_other: []
+};
 
 const FILTER_GROUPS = {
     movie: {
@@ -483,19 +495,34 @@ const VideoCard = {
 };
 
 const VideoRow = {
-    props: ['title', 'items', 'source'],
-    emits: ['open'],
+    props: ['title', 'items', 'categoryKey'],
+    emits: ['open', 'more'],
     components: { VideoCard },
+    methods: {
+        scrollRow(direction) {
+            const row = this.$refs.row;
+            if (!row) return;
+            row.scrollBy({ left: direction * Math.max(320, row.clientWidth * 0.85), behavior: 'smooth' });
+        }
+    },
     template: `
         <section class="space-y-3">
             <div class="flex items-center justify-between">
                 <h2 class="text-xl font-black">{{ title }}</h2>
-                <span class="text-xs text-zinc-500">查看更多</span>
+                <button @click="$emit('more', categoryKey)" class="text-xs text-rose-300 hover:text-rose-200">查看更多</button>
             </div>
-            <div v-if="items && items.length" class="safe-scroll-x flex gap-3 sm:gap-4 pb-2">
-                <div v-for="video in items.slice(0, 12)" :key="title + video.vod_id" class="w-[42vw] max-w-40 sm:w-40 lg:w-44 shrink-0">
-                    <video-card :video="video" @open="$emit('open', video)"></video-card>
+            <div v-if="items && items.length" class="relative">
+                <button @click="scrollRow(-1)" class="hidden sm:flex absolute left-0 top-1/2 -translate-y-1/2 z-10 w-9 h-12 rounded-r-lg bg-black/70 border border-white/10 items-center justify-center text-zinc-200 hover:text-white">
+                    <i class="fa-solid fa-chevron-left"></i>
+                </button>
+                <div ref="row" class="safe-scroll-x flex gap-3 sm:gap-4 pb-2 scroll-smooth">
+                    <div v-for="video in items.slice(0, 18)" :key="title + video.source_id + video.vod_id" class="w-[42vw] max-w-40 sm:w-40 lg:w-44 shrink-0">
+                        <video-card :video="video" @open="$emit('open', video)"></video-card>
+                    </div>
                 </div>
+                <button @click="scrollRow(1)" class="hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 z-10 w-9 h-12 rounded-l-lg bg-black/70 border border-white/10 items-center justify-center text-zinc-200 hover:text-white">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </button>
             </div>
             <div v-else class="safe-scroll-x flex gap-3 sm:gap-4 pb-2">
                 <div v-for="i in 6" :key="i" class="w-[42vw] max-w-40 sm:w-40 lg:w-44 shrink-0 rounded-lg bg-zinc-950 border border-white/10 aspect-[3/4] animate-pulse"></div>
@@ -800,24 +827,91 @@ createApp({
             return `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}${query.toString()}`;
         }
 
-        function resolveStandardCategory(standardCategory) {
-            const aliases = standardCategory.aliases || [];
-            return Object.values(sourceCategories).flat().filter(category => aliases.some(alias => category.name.includes(alias) || alias.includes(category.name)));
+        function cleanCategoryName(name = '') {
+            return String(name)
+                .replace(/[（）()【】\[\]\s_-]/g, '')
+                .replace(/专区|频道|资源|大全|列表|推荐|热门|高清|蓝光|专区$/g, '');
+        }
+
+        function normalizeVideoTitle(title = '') {
+            return String(title)
+                .toLowerCase()
+                .replace(/第[一二三四五六七八九十\d]+季/g, '')
+                .replace(/[（）()【】\[\]《》<>：:·,，.。!！?？\s_-]/g, '')
+                .replace(/国语|粤语|中字|高清|蓝光|抢先版|剧场版|电影版|真人版/g, '')
+                .trim();
+        }
+
+        function videoTitleMatches(candidate, target) {
+            const a = normalizeVideoTitle(candidate);
+            const b = normalizeVideoTitle(target);
+            if (!a || !b) return false;
+            return a === b || a.includes(b) || b.includes(a);
+        }
+
+        function categoryMatchesStandard(sourceCategory, standardCategory) {
+            const name = cleanCategoryName(sourceCategory?.name);
+            if (!name || !standardCategory?.key) return false;
+            const excludes = CATEGORY_EXCLUDES[standardCategory.key] || [];
+            if (excludes.some(word => name.includes(cleanCategoryName(word)))) return false;
+            return (standardCategory.aliases || []).some(alias => {
+                const normalizedAlias = cleanCategoryName(alias);
+                return normalizedAlias && (name.includes(normalizedAlias) || normalizedAlias.includes(name));
+            });
+        }
+
+        function resolveStandardCategory(standardCategory, sourceId = null) {
+            const categoryGroups = sourceId ? [sourceCategories[sourceId] || []] : Object.values(sourceCategories);
+            const map = new Map();
+            categoryGroups.flat().forEach(category => {
+                if (categoryMatchesStandard(category, standardCategory)) {
+                    map.set(`${category.source_id}-${category.id}`, category);
+                }
+            });
+            return Array.from(map.values());
+        }
+
+        function hasPlayableVideo(video) {
+            return parsePlayUrls(video?.vod_play_url, video?.source_id).length > 0;
+        }
+
+        function groupVideosByTitle(items) {
+            const map = new Map();
+            items.forEach(item => {
+                const normalizedName = normalizeVideoTitle(item.vod_name || '') || item.vod_name || '';
+                const key = `${normalizedName}-${item.vod_year || ''}`;
+                if (!map.has(key)) {
+                    map.set(key, { ...item, key, sources: [], sourceNames: '' });
+                }
+                const group = map.get(key);
+                if (!group.sources.some(source => source.source_id === item.source_id)) {
+                    group.sources.push(item);
+                }
+                group.sourceNames = group.sources.map(source => source.source_name).join(' / ');
+                if (!group.vod_pic && item.vod_pic) group.vod_pic = item.vod_pic;
+            });
+            return Array.from(map.values());
         }
 
         function dedupeVideos(items) {
-            const map = new Map();
-            items.forEach(item => {
-                const key = `${item.vod_name || ''}-${item.vod_year || ''}`;
-                if (!map.has(key)) map.set(key, item);
-            });
-            return Array.from(map.values());
+            return groupVideosByTitle(items);
         }
 
         async function fetchCategories(source = activeHomeSource.value) {
             try {
                 const data = await fetchWithFallback(apiUrl(source.url, { ac: 'list' }));
-                sourceCategories[source.id] = Array.isArray(data.class) ? data.class.map(item => ({ id: item.type_id, name: item.type_name, source_id: source.id })) : [];
+                const map = new Map();
+                if (Array.isArray(data.class)) {
+                    data.class.forEach(item => {
+                        if (item.type_id && item.type_name) map.set(String(item.type_id), { id: item.type_id, name: item.type_name, source_id: source.id });
+                    });
+                }
+                if (Array.isArray(data.list)) {
+                    data.list.forEach(item => {
+                        if (item.type_id && item.type_name) map.set(String(item.type_id), { id: item.type_id, name: item.type_name, source_id: source.id });
+                    });
+                }
+                sourceCategories[source.id] = Array.from(map.values());
             } catch (error) {
                 sourceCategories[source.id] = [];
             }
@@ -838,14 +932,14 @@ createApp({
         }
 
         async function fetchStandardCategoryList(source, standardCategory, page = 1) {
-            const aliases = standardCategory?.aliases || [];
-            const matched = (sourceCategories[source.id] || []).filter(category => aliases.some(alias => category.name.includes(alias) || alias.includes(category.name)));
+            const matched = resolveStandardCategory(standardCategory, source.id);
             if (!matched.length) {
                 const data = await fetchList(source, { page });
-                return { ...data, list: [] };
+                const list = (data.list || []).filter(video => categoryMatchesStandard({ name: `${video.type_name || ''} ${video.vod_class || ''}` }, standardCategory));
+                return { ...data, list };
             }
 
-            const limited = matched.slice(0, 8);
+            const limited = matched.slice(0, 12);
             const settled = await Promise.allSettled(limited.map(category => fetchList(source, { page, categoryId: category.id })));
             const list = [];
             let maxPageCount = 1;
@@ -917,7 +1011,8 @@ createApp({
                     list.push(...result.value);
                 }
             });
-            const filtered = filterVideosBySmartRules(dedupeVideos(list));
+            const grouped = groupVideosByTitle(list.filter(hasPlayableVideo));
+            const filtered = filterVideosBySmartRules(grouped);
             return {
                 code: 1,
                 page,
@@ -937,6 +1032,47 @@ createApp({
                 if (matched.length >= 20 || page >= (parseInt(data.pagecount) || 1)) break;
             }
             return { list: matched.slice(0, 20), pagecount: 1 };
+        }
+
+        async function findPlayableSourcesForVideo(video) {
+            const keyword = (video?.vod_name || '').trim();
+            if (!keyword) return [];
+
+            const results = [];
+            await Promise.allSettled(sources.value.map(async source => {
+                try {
+                    let data;
+                    try {
+                        data = await fetchList(source, { keyword, page: 1 });
+                    } catch (error) {
+                        if (error.sourceUnsupported) {
+                            data = await localScanSearch(source, keyword);
+                        } else {
+                            throw error;
+                        }
+                    }
+                    const candidates = (data.list || [])
+                        .map(item => ({ ...item, source_id: source.id, source_name: source.name }))
+                        .filter(item => videoTitleMatches(item.vod_name, keyword) && hasPlayableVideo(item));
+                    const sameYear = String(video.vod_year || '');
+                    const best = candidates.find(item => sameYear && String(item.vod_year || '') === sameYear) || candidates[0];
+                    if (best) results.push(best);
+                } catch (error) {
+                    console.warn(`[详情来源跳过] ${source.name}: ${error.message}`);
+                }
+            }));
+
+            const currentSourceId = video.source_id || activeSourceId.value;
+            const currentSource = findSource(currentSourceId);
+            const currentVideo = {
+                ...video,
+                source_id: currentSourceId,
+                source_name: video.source_name || currentSource?.name || getActiveSourceName()
+            };
+            if (hasPlayableVideo(currentVideo) && !results.some(item => item.source_id === currentVideo.source_id)) {
+                results.unshift(currentVideo);
+            }
+            return results.sort((a, b) => Number(b.source_id === currentSourceId) - Number(a.source_id === currentSourceId));
         }
 
         async function loadHome() {
@@ -1018,20 +1154,7 @@ createApp({
         }
 
         function groupSearchResults(items) {
-            const map = new Map();
-            items.forEach(video => {
-                const key = video.vod_name;
-                if (!map.has(key)) {
-                    map.set(key, { ...video, key, sources: [], sourceNames: '' });
-                }
-                const group = map.get(key);
-                if (!group.sources.some(source => source.source_id === video.source_id)) {
-                    group.sources.push(video);
-                }
-                group.sourceNames = group.sources.map(item => item.source_name).join(' / ');
-                if (!group.vod_pic && video.vod_pic) group.vod_pic = video.vod_pic;
-            });
-            return Array.from(map.values()).sort((a, b) => b.sources.length - a.sources.length);
+            return groupVideosByTitle(items.filter(hasPlayableVideo)).sort((a, b) => b.sources.length - a.sources.length);
         }
 
         function quickSearch(word) {
@@ -1097,6 +1220,11 @@ createApp({
             pushRoute();
         }
 
+        async function openCategoryByKey(key) {
+            const category = key ? STANDARD_CATEGORIES.find(item => item.key === key) || null : null;
+            await openCategory(category);
+        }
+
         async function openTopCategory(item) {
             selectedTopKey.value = item.key;
             if (item.key === 'home') {
@@ -1126,12 +1254,38 @@ createApp({
             openDetailFromVideo(item.sources[0], findSource(item.sources[0].source_id));
         }
 
-        function openDetailFromVideo(video, source, push = true) {
+        async function openAggregatedDetail(video) {
+            detailSources.value = Array.isArray(video.sources) ? video.sources.filter(hasPlayableVideo) : [];
+            currentDetailSourceIdx.value = 0;
+            await openDetailFromVideo(video, findSource(video.source_id));
+        }
+
+        async function openDetailFromVideo(video, source, push = true) {
             settingsOpen.value = false;
             const sourceId = video.source_id || source?.id || activeSourceId.value;
-            detailSources.value = detailSources.value.length ? detailSources.value : [{ ...video, source_id: sourceId, source_name: source?.name || findSource(sourceId)?.name || getActiveSourceName() }];
-            activeVideo.value = video;
-            playSources.value = parsePlayUrls(video.vod_play_url, sourceId);
+            const fallbackVideo = { ...video, source_id: sourceId, source_name: video.source_name || source?.name || findSource(sourceId)?.name || getActiveSourceName() };
+            const groupedSources = Array.isArray(video.sources) && video.sources.length
+                ? video.sources.filter(hasPlayableVideo)
+                : [];
+            activeVideo.value = fallbackVideo;
+            if (groupedSources.length) {
+                detailSources.value = groupedSources;
+                currentDetailSourceIdx.value = Math.max(0, groupedSources.findIndex(item => item.source_id === sourceId));
+                const selected = detailSources.value[currentDetailSourceIdx.value] || detailSources.value[0];
+                activeVideo.value = selected;
+                playSources.value = parsePlayUrls(selected.vod_play_url, selected.source_id);
+            } else {
+                detailSources.value = hasPlayableVideo(fallbackVideo) ? [fallbackVideo] : [];
+                const foundSources = await findPlayableSourcesForVideo(fallbackVideo);
+                if (foundSources.length) {
+                    detailSources.value = foundSources;
+                    currentDetailSourceIdx.value = Math.max(0, foundSources.findIndex(item => item.source_id === sourceId));
+                    const selected = detailSources.value[currentDetailSourceIdx.value] || detailSources.value[0];
+                    activeVideo.value = selected;
+                    playSources.value = parsePlayUrls(selected.vod_play_url, selected.source_id);
+                }
+            }
+            if (!playSources.value.length) playSources.value = parsePlayUrls(fallbackVideo.vod_play_url, sourceId);
             currentSourceIdx.value = 0;
             currentEpisodeIdx.value = 0;
             setTimeout(() => {
@@ -1271,8 +1425,8 @@ createApp({
             favoriteVideos, currentPage, totalPages, loading, errorMsg, homeSections, heroVideo, activeVideo,
             detailSources, currentDetailSourceIdx, playSources, currentSourceIdx, currentEpisodeIdx, videoPlayer,
             playLoading, toast, hotKeywords, proxies: PROXIES, selectedProxyId,
-            handleGlobalSearch, quickSearch, goHome, openFavorites, openSettings, closeSettings, setSmartFilter, filterButtonClass, saveProxy, openCategory,
-            openTopCategory, handleSourceSwitch, changePage, openSearchResult, openDetailFromVideo, selectDetailSource,
+            handleGlobalSearch, quickSearch, goHome, openFavorites, openSettings, closeSettings, setSmartFilter, filterButtonClass, saveProxy, openCategory, openCategoryByKey,
+            openTopCategory, handleSourceSwitch, changePage, openSearchResult, openDetailFromVideo, openAggregatedDetail, selectDetailSource,
             playEpisode, closeDetail, isFavorited, toggleFavorite, stripHtml, getPosterUrl, handlePosterError, findSource
         };
     }
