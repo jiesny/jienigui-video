@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>杰尼龟影视 - 多源聚合影视 App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        body { background: #0a0a0a; }
+        .nav-glass { background: rgba(10, 10, 10, .86); backdrop-filter: blur(18px); }
+        .poster-skeleton { background: linear-gradient(135deg, #1f2937, #111827); }
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    </style>
+</head>
+<body class="text-zinc-100 selection:bg-rose-500 selection:text-white">
+<div id="app" class="min-h-screen">
+    <header class="sticky top-0 z-40 nav-glass border-b border-white/10">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center gap-4">
+            <button @click="viewMode='home'; selectedCategory=null; searchQuery=''" class="flex items-center gap-2 shrink-0">
+                <span class="w-9 h-9 rounded-lg bg-rose-600 flex items-center justify-center shadow-lg shadow-rose-900/30">
+                    <i class="fa-solid fa-clapperboard"></i>
+                </span>
+                <span class="font-black text-lg tracking-wide">杰尼龟影视</span>
+            </button>
+
+            <nav class="hidden lg:flex items-center gap-1 text-sm text-zinc-400">
+                <button v-for="item in topNav" :key="item.key" @click="openTopCategory(item)"
+                    :class="['px-3 py-2 rounded-lg transition', selectedTopKey === item.key ? 'bg-white/10 text-white' : 'hover:bg-white/10 hover:text-white']">
+                    {{ item.name }}
+                </button>
+            </nav>
+
+            <form @submit.prevent="handleGlobalSearch" class="ml-auto flex-1 max-w-xl relative">
+                <input ref="searchInputEl" v-model="searchQuery" type="text" placeholder="搜索电影、剧集、动漫、演员..."
+                    class="w-full h-10 bg-zinc-900 border border-white/10 rounded-lg pl-4 pr-12 text-sm outline-none focus:border-rose-500 placeholder-zinc-500">
+                <button class="absolute right-1 top-1 w-8 h-8 rounded-lg bg-rose-600 hover:bg-rose-500 transition" title="搜索">
+                    <i class="fa-solid fa-magnifying-glass text-sm"></i>
+                </button>
+            </form>
+
+            <button @click="viewMode='favorites'" class="hidden sm:flex h-10 px-3 rounded-lg bg-zinc-900 border border-white/10 items-center gap-2 text-sm text-zinc-300 hover:text-white">
+                <i class="fa-solid fa-heart text-rose-500"></i> 收藏
+            </button>
+            <button @click="settingsOpen=true" class="h-10 w-10 rounded-lg bg-zinc-900 border border-white/10 text-zinc-300 hover:text-white" title="站点设置">
+                <i class="fa-solid fa-sliders"></i>
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        <section v-if="toast.show" class="fixed top-20 right-4 z-50 max-w-sm rounded-lg border border-white/10 bg-zinc-950/95 px-4 py-3 shadow-2xl">
+            <div class="flex items-center gap-2 text-sm" :class="toast.type === 'error' ? 'text-rose-300' : toast.type === 'success' ? 'text-emerald-300' : 'text-amber-300'">
+                <i :class="toast.type === 'error' ? 'fa-solid fa-circle-xmark' : toast.type === 'success' ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-info'"></i>
+                <span>{{ toast.message }}</span>
+            </div>
+        </section>
+
+        <section v-if="viewMode === 'home'" class="space-y-8">
+            <div class="grid grid-cols-1 lg:grid-cols-[1.25fr_.75fr] gap-5">
+                <div class="relative min-h-[310px] rounded-lg overflow-hidden bg-zinc-900 border border-white/10">
+                    <img v-if="heroVideo" :src="getPosterUrl(heroVideo.vod_pic)" @error="handlePosterError"
+                        class="absolute inset-0 w-full h-full object-cover opacity-45">
+                    <div class="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent"></div>
+                    <div class="relative h-full p-6 sm:p-8 flex flex-col justify-end max-w-2xl">
+                        <div class="flex items-center gap-2 text-xs text-rose-300 mb-3">
+                            <span class="px-2 py-1 rounded bg-rose-600/20 border border-rose-500/30">今日热播</span>
+                            <span>{{ heroVideo?.type_name || '多源推荐' }}</span>
+                            <span>{{ heroVideo?.vod_remarks || '高清' }}</span>
+                        </div>
+                        <h1 class="text-3xl sm:text-5xl font-black leading-tight mb-3">{{ heroVideo?.vod_name || '杰尼龟影视' }}</h1>
+                        <p class="text-sm text-zinc-300 line-clamp-2 mb-5">{{ stripHtml(heroVideo?.vod_content) || '聚合多个影视采集源，先找片，再在详情里选择可用播放源。' }}</p>
+                        <div class="flex flex-wrap gap-2">
+                            <button v-if="heroVideo" @click="openDetailFromVideo(heroVideo, activeHomeSource)" class="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-sm font-bold">
+                                <i class="fa-solid fa-play mr-1"></i> 立即观看
+                            </button>
+                            <button @click="viewMode='category'" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-sm font-bold">
+                                <i class="fa-solid fa-table-cells-large mr-1"></i> 浏览分类
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <aside class="rounded-lg border border-white/10 bg-zinc-950 p-4 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h2 class="font-bold">大家都在搜</h2>
+                        <span class="text-xs text-zinc-500">热门关键词</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button v-for="word in hotKeywords" :key="word" @click="quickSearch(word)"
+                            class="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/10 text-sm text-zinc-300 hover:border-rose-500 hover:text-white">
+                            {{ word }}
+                        </button>
+                    </div>
+                    <div class="pt-3 border-t border-white/10">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="font-bold">采集源</h2>
+                            <span class="text-xs text-zinc-500">{{ sources.length }} 个</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button v-for="source in sources" :key="source.id" @click="setHomeSource(source.id)"
+                                :class="['px-3 py-2 rounded-lg text-xs border transition text-left', activeSourceId === source.id ? 'bg-rose-600/15 border-rose-500 text-white' : 'bg-zinc-900 border-white/10 text-zinc-400 hover:text-white']">
+                                {{ source.name }}
+                            </button>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+
+            <section class="rounded-lg border border-white/10 bg-zinc-950 p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="font-bold">分类导航</h2>
+                    <button @click="viewMode='category'" class="text-xs text-rose-300 hover:text-rose-200">全部分类</button>
+                </div>
+                <div class="flex gap-2 overflow-x-auto pb-1">
+                    <button v-for="cat in visibleCategories" :key="cat.id" @click="openCategory(cat)"
+                        class="shrink-0 px-3 py-2 rounded-lg bg-zinc-900 border border-white/10 text-sm text-zinc-300 hover:border-rose-500 hover:text-white">
+                        {{ cat.name }}
+                    </button>
+                    <span v-if="!visibleCategories.length" class="text-sm text-zinc-500">分类加载中...</span>
+                </div>
+            </section>
+
+            <video-row title="最近更新" :items="homeSections.latest" :source="activeHomeSource" @open="openDetailFromVideo"></video-row>
+            <video-row title="近期热门电影" :items="homeSections.movies" :source="activeHomeSource" @open="openDetailFromVideo"></video-row>
+            <video-row title="近期热门剧集" :items="homeSections.series" :source="activeHomeSource" @open="openDetailFromVideo"></video-row>
+            <video-row title="热播动漫" :items="homeSections.anime" :source="activeHomeSource" @open="openDetailFromVideo"></video-row>
+        </section>
+
+        <section v-else-if="viewMode === 'search'" class="space-y-5">
+            <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+                <div>
+                    <h1 class="text-2xl font-black">搜索结果</h1>
+                    <p class="text-sm text-zinc-500 mt-1">已跨全部采集源检索同名影片；点进详情后再切换可用来源。关键词：<span class="text-zinc-200">{{ lastSearchKeyword }}</span></p>
+                </div>
+                <button @click="viewMode='home'" class="self-start px-3 py-2 rounded-lg bg-zinc-900 border border-white/10 text-sm text-zinc-300 hover:text-white">
+                    <i class="fa-solid fa-arrow-left mr-1"></i> 返回首页
+                </button>
+            </div>
+
+            <div v-if="loading" class="py-20 text-center text-zinc-400">
+                <i class="fa-solid fa-spinner animate-spin text-2xl mb-3 block"></i>
+                正在聚合多个采集源...
+            </div>
+
+            <div v-else-if="errorMsg" class="rounded-lg bg-rose-950/30 border border-rose-900 p-6 text-rose-200 text-sm">
+                {{ errorMsg }}
+            </div>
+
+            <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <article v-for="item in searchResults" :key="item.key" @click="openSearchResult(item)"
+                    class="group rounded-lg overflow-hidden bg-zinc-950 border border-white/10 cursor-pointer hover:border-rose-500 transition">
+                    <div class="relative aspect-[3/4] poster-skeleton">
+                        <img :src="getPosterUrl(item.vod_pic)" @error="handlePosterError" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                        <span class="absolute left-2 top-2 px-2 py-0.5 rounded bg-black/75 text-[10px] text-rose-300">{{ item.type_name || '影视' }}</span>
+                        <span class="absolute right-2 bottom-2 px-2 py-0.5 rounded bg-black/75 text-[10px]">{{ item.sources.length }}源</span>
+                    </div>
+                    <div class="p-3">
+                        <h3 class="font-bold text-sm truncate group-hover:text-rose-300">{{ item.vod_name }}</h3>
+                        <p class="text-[11px] text-zinc-500 mt-1 truncate">{{ item.vod_remarks || item.type_name || '聚合结果' }}</p>
+                        <div class="mt-2 flex flex-wrap gap-1">
+                            <span v-for="sourceName in item.sources.slice(0, 3).map(source => source.source_name)" :key="sourceName"
+                                class="px-1.5 py-0.5 rounded bg-zinc-900 border border-white/10 text-[10px] text-zinc-400">
+                                {{ sourceName }}
+                            </span>
+                        </div>
+                    </div>
+                </article>
+            </div>
+        </section>
+
+        <section v-else-if="viewMode === 'category'" class="space-y-5">
+            <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+                <div>
+                    <h1 class="text-2xl font-black">{{ selectedCategory ? selectedCategory.name : '分类浏览' }}</h1>
+                    <p class="text-sm text-zinc-500 mt-1">按当前采集源分类浏览内容。</p>
+                </div>
+                <select v-model="activeSourceId" @change="handleSourceSwitch" class="bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none">
+                    <option v-for="source in sources" :key="source.id" :value="source.id" class="bg-zinc-950">{{ source.name }}</option>
+                </select>
+            </div>
+
+            <div class="flex gap-2 overflow-x-auto pb-1">
+                <button @click="openCategory(null)" :class="['shrink-0 px-3 py-2 rounded-lg text-sm border', !selectedCategory ? 'bg-rose-600 border-rose-500' : 'bg-zinc-900 border-white/10 text-zinc-300']">全部</button>
+                <button v-for="cat in presetCategories" :key="cat.id" @click="openCategory(cat)"
+                    :class="['shrink-0 px-3 py-2 rounded-lg text-sm border', selectedCategory?.id === cat.id ? 'bg-rose-600 border-rose-500' : 'bg-zinc-900 border-white/10 text-zinc-300 hover:text-white']">
+                    {{ cat.name }}
+                </button>
+            </div>
+
+            <div v-if="loading" class="py-20 text-center text-zinc-400">
+                <i class="fa-solid fa-spinner animate-spin text-2xl mb-3 block"></i>
+                正在加载内容...
+            </div>
+            <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <video-card v-for="video in videos" :key="video.vod_id" :video="video" @open="openDetailFromVideo(video, activeHomeSource)"></video-card>
+            </div>
+            <div class="flex justify-center gap-2 pt-4">
+                <button @click="changePage(currentPage - 1)" :disabled="currentPage <= 1" class="px-4 py-2 rounded-lg bg-zinc-900 border border-white/10 text-sm disabled:opacity-40">上一页</button>
+                <span class="px-4 py-2 text-sm text-zinc-400">第 {{ currentPage }} / {{ totalPages }} 页</span>
+                <button @click="changePage(currentPage + 1)" :disabled="currentPage >= totalPages" class="px-4 py-2 rounded-lg bg-zinc-900 border border-white/10 text-sm disabled:opacity-40">下一页</button>
+            </div>
+        </section>
+
+        <section v-else-if="viewMode === 'favorites'" class="space-y-5">
+            <div class="flex items-center justify-between">
+                <h1 class="text-2xl font-black">我的收藏</h1>
+                <button @click="viewMode='home'" class="px-3 py-2 rounded-lg bg-zinc-900 border border-white/10 text-sm text-zinc-300 hover:text-white">返回首页</button>
+            </div>
+            <div v-if="favoriteVideos.length === 0" class="py-24 text-center text-zinc-500">暂无收藏</div>
+            <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <video-card v-for="video in favoriteVideos" :key="video.vod_id + video.source_id" :video="video" @open="openDetailFromVideo(video, findSource(video.source_id))"></video-card>
+            </div>
+        </section>
+    </main>
+
+    <div v-if="activeVideo" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm overflow-y-auto">
+        <div class="max-w-6xl mx-auto min-h-screen p-4 flex items-center">
+            <div class="w-full rounded-lg border border-white/10 bg-zinc-950 shadow-2xl overflow-hidden">
+                <div class="relative">
+                    <button @click="closeDetail" class="absolute right-4 top-4 z-10 w-9 h-9 rounded-lg bg-black/70 hover:bg-zinc-800">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                    <div class="grid grid-cols-1 lg:grid-cols-[1fr_380px]">
+                        <div class="bg-black aspect-video lg:aspect-auto min-h-[260px] relative">
+                            <video ref="videoPlayer" controls class="w-full h-full object-contain bg-black"></video>
+                            <div v-if="playLoading" class="absolute inset-0 flex items-center justify-center bg-black/70 text-zinc-300 text-sm">
+                                <i class="fa-solid fa-spinner animate-spin mr-2"></i> 正在缓冲...
+                            </div>
+                        </div>
+                        <aside class="p-5 space-y-4 max-h-[82vh] overflow-y-auto">
+                            <div>
+                                <div class="text-xs text-rose-300 mb-2">{{ activeVideo.type_name || '影视' }} · {{ activeVideo.vod_remarks || '高清' }}</div>
+                                <h2 class="text-2xl font-black">{{ activeVideo.vod_name }}</h2>
+                                <p class="text-xs text-zinc-500 mt-2">{{ activeVideo.vod_year || '' }} {{ activeVideo.vod_area || '' }} {{ activeVideo.vod_lang || '' }}</p>
+                            </div>
+
+                            <div class="flex gap-2">
+                                <button @click="toggleFavorite(activeVideo)" class="px-3 py-2 rounded-lg bg-zinc-900 border border-white/10 text-sm hover:text-rose-300">
+                                    <i class="fa-solid fa-heart mr-1" :class="isFavorited(activeVideo.vod_id) ? 'text-rose-500' : 'text-zinc-500'"></i> 收藏
+                                </button>
+                            </div>
+
+                            <div v-if="detailSources.length" class="space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <h3 class="text-sm font-bold">当前影片可用来源</h3>
+                                    <span class="text-[11px] text-zinc-500">{{ detailSources.length }} 个源</span>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    <button v-for="(source, idx) in detailSources" :key="source.source_id + '-' + source.vod_id" @click="selectDetailSource(idx)"
+                                        :class="['px-3 py-1.5 rounded-lg text-xs border', currentDetailSourceIdx === idx ? 'bg-rose-600 border-rose-500 text-white' : 'bg-zinc-900 border-white/10 text-zinc-300']">
+                                        {{ source.source_name }}
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div v-if="playSources.length" class="space-y-3">
+                                <div v-for="(group, sourceIdx) in playSources" :key="sourceIdx">
+                                    <h3 class="text-sm font-bold mb-2">{{ group.sourceName }}</h3>
+                                    <div class="grid grid-cols-3 gap-2">
+                                        <button v-for="(ep, epIdx) in group.episodes" :key="epIdx" @click="playEpisode(ep.url, sourceIdx, epIdx)"
+                                            :class="['px-2 py-2 rounded-lg text-xs border truncate', currentSourceIdx === sourceIdx && currentEpisodeIdx === epIdx ? 'bg-rose-600 border-rose-500' : 'bg-zinc-900 border-white/10 text-zinc-300']">
+                                            {{ ep.name }}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="text-sm text-zinc-400 leading-relaxed">{{ stripHtml(activeVideo.vod_content) || '暂无简介' }}</p>
+                        </aside>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="settingsOpen" class="fixed inset-0 z-50">
+        <div class="absolute inset-0 bg-black/60" @click="settingsOpen=false"></div>
+        <aside class="absolute right-0 top-0 h-full w-full max-w-md bg-zinc-950 border-l border-white/10 shadow-2xl overflow-y-auto">
+            <div class="sticky top-0 z-10 nav-glass border-b border-white/10 px-5 py-4 flex items-center justify-between">
+                <div>
+                    <h2 class="font-black text-lg">站点设置</h2>
+                    <p class="text-xs text-zinc-500 mt-1">采集源、代理通道、部署信息</p>
+                </div>
+                <button @click="settingsOpen=false" class="w-9 h-9 rounded-lg bg-zinc-900 border border-white/10 hover:bg-zinc-800">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-5 space-y-6">
+                <section class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold">当前采集源</h3>
+                        <button @click="resetSources" class="text-xs text-rose-300 hover:text-rose-200">
+                            <i class="fa-solid fa-rotate-left mr-1"></i>恢复默认
+                        </button>
+                    </div>
+                    <div class="space-y-2">
+                        <div v-for="source in sources" :key="source.id"
+                            :class="['rounded-lg border p-3 transition', activeSourceId === source.id ? 'border-rose-500 bg-rose-600/10' : 'border-white/10 bg-zinc-900']">
+                            <div class="flex items-center justify-between gap-3">
+                                <button @click="setHomeSource(source.id)" class="text-left min-w-0">
+                                    <div class="font-bold text-sm truncate">{{ source.name }}</div>
+                                    <div class="text-[11px] text-zinc-500 truncate mt-1">{{ source.url }}</div>
+                                </button>
+                                <button @click="deleteSource(source.id)" :disabled="sources.length <= 1"
+                                    class="shrink-0 w-8 h-8 rounded-lg bg-zinc-950 border border-white/10 text-zinc-500 hover:text-rose-300 disabled:opacity-30">
+                                    <i class="fa-solid fa-trash text-xs"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="space-y-3">
+                    <h3 class="font-bold">添加采集源</h3>
+                    <form @submit.prevent="addNewSource" class="space-y-2">
+                        <input v-model="newSource.name" type="text" placeholder="采集源名称"
+                            class="w-full bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-rose-500">
+                        <input v-model="newSource.url" type="url" placeholder="CMS JSON 接口地址，以 http 开头"
+                            class="w-full bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-rose-500">
+                        <button class="w-full h-10 rounded-lg bg-rose-600 hover:bg-rose-500 text-sm font-bold">
+                            <i class="fa-solid fa-plus mr-1"></i>加入采集源
+                        </button>
+                    </form>
+                </section>
+
+                <section class="space-y-3">
+                    <h3 class="font-bold">在线代理通道</h3>
+                    <select v-model="selectedProxyId" @change="saveProxy"
+                        class="w-full bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-rose-500">
+                        <option v-for="proxy in proxies" :key="proxy.id" :value="proxy.id" class="bg-zinc-950">{{ proxy.name }}</option>
+                    </select>
+                    <p class="text-xs text-zinc-500 leading-relaxed">GitHub Pages 是静态托管，不能运行后端代理。这里使用公共在线代理通道访问采集接口，不需要安装浏览器插件。</p>
+                </section>
+
+                <section class="space-y-3">
+                    <h3 class="font-bold">GitHub Pages 部署</h3>
+                    <div class="rounded-lg bg-zinc-900 border border-white/10 p-3 text-xs text-zinc-400 leading-relaxed space-y-2">
+                        <p>入口文件：<code class="text-rose-300">index.html</code></p>
+                        <p>部署位置：仓库根目录，Settings -> Pages -> Deploy from a branch -> main / root。</p>
+                        <p>访问方式：手机、电脑、平板打开同一个 Pages HTTPS 地址即可。</p>
+                    </div>
+                </section>
+            </div>
+        </aside>
+    </div>
+</div>
+
+<script>
+const { createApp, ref, reactive, computed, onMounted } = Vue;
+
+const PROXIES = [
+    { id: 'corsproxy_io', name: 'Corsproxy.io', getUrl: url => `https://corsproxy.io/?${encodeURIComponent(url)}` },
+    { id: 'allorigins', name: 'AllOrigins', getUrl: url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}` },
+    { id: 'codetabs', name: 'Codetabs', getUrl: url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}` }
+];
+
+const DEFAULT_SOURCES = [
+    { id: 'source_lzzy', name: '量子高清资源', url: 'https://cj.lziapi.com/api.php/provide/vod/' },
+    { id: 'source_wsyzy', name: '非凡无水印源', url: 'https://api.wsyzy.net/api.php/provide/vod/' },
+    { id: 'source_yjzy', name: '影剧资源', url: 'https://yjzy.tv/api.php/provide/vod/' },
+    { id: 'source_mtzy', name: '茅台资源', url: 'https://caiji.maotaizy.cc/api.php/provide/vod/' },
+    { id: 'source_wujin', name: '无尽资源', url: 'https://api.wujinapi.me/api.php/provide/vod/' }
+];
+
+const FALLBACK_POSTER = 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500&auto=format&fit=crop&q=70';
+
+const VideoCard = {
+    props: ['video'],
+    emits: ['open'],
+    template: `
+        <article @click="$emit('open')" class="group rounded-lg overflow-hidden bg-zinc-950 border border-white/10 cursor-pointer hover:border-rose-500 transition">
+            <div class="relative aspect-[3/4] poster-skeleton">
+                <img :src="poster" @error="onError" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                <span class="absolute left-2 top-2 px-2 py-0.5 rounded bg-black/75 text-[10px] text-rose-300">{{ video.type_name || '影视' }}</span>
+                <span class="absolute right-2 bottom-2 px-2 py-0.5 rounded bg-black/75 text-[10px]">{{ video.vod_remarks || '高清' }}</span>
+            </div>
+            <div class="p-3">
+                <h3 class="font-bold text-sm truncate group-hover:text-rose-300">{{ video.vod_name }}</h3>
+                <p class="text-[11px] text-zinc-500 mt-1 truncate">{{ video.vod_time ? video.vod_time.split(' ')[0] : video.source_name || '更新中' }}</p>
+            </div>
+        </article>
+    `,
+    computed: {
+        poster() {
+            return this.video?.vod_pic || FALLBACK_POSTER;
+        }
+    },
+    methods: {
+        onError(event) {
+            event.target.src = FALLBACK_POSTER;
+        }
+    }
+};
+
+const VideoRow = {
+    props: ['title', 'items', 'source'],
+    emits: ['open'],
+    components: { VideoCard },
+    template: `
+        <section class="space-y-3">
+            <div class="flex items-center justify-between">
+                <h2 class="text-xl font-black">{{ title }}</h2>
+                <span class="text-xs text-zinc-500">查看更多</span>
+            </div>
+            <div v-if="items && items.length" class="flex gap-4 overflow-x-auto pb-2">
+                <div v-for="video in items.slice(0, 12)" :key="title + video.vod_id" class="w-36 sm:w-40 lg:w-44 shrink-0">
+                    <video-card :video="video" @open="$emit('open', video, source)"></video-card>
+                </div>
+            </div>
+            <div v-else class="flex gap-4 overflow-hidden">
+                <div v-for="i in 6" :key="i" class="w-36 sm:w-40 lg:w-44 shrink-0 rounded-lg bg-zinc-950 border border-white/10 aspect-[3/4] animate-pulse"></div>
+            </div>
+        </section>
+    `
+};
+
+createApp({
+    components: { VideoCard, VideoRow },
+    setup() {
+        const viewMode = ref('home');
+        const settingsOpen = ref(false);
+        const selectedTopKey = ref('home');
+        const sources = ref([...DEFAULT_SOURCES]);
+        const activeSourceId = ref('source_lzzy');
+        const selectedProxyId = ref(localStorage.getItem('my_cms_proxy') || 'allorigins');
+        const newSource = reactive({ name: '', url: '' });
+        const activeHomeSource = computed(() => findSource(activeSourceId.value) || sources.value[0]);
+        const searchQuery = ref('');
+        const searchInputEl = ref(null);
+        const lastSearchKeyword = ref('');
+        const selectedCategory = ref(null);
+        const presetCategories = ref([]);
+        const visibleCategories = computed(() => presetCategories.value.slice(0, 24));
+        const videos = ref([]);
+        const searchResults = ref([]);
+        const favoriteVideos = ref([]);
+        const currentPage = ref(1);
+        const totalPages = ref(1);
+        const loading = ref(false);
+        const errorMsg = ref('');
+        const homeSections = reactive({ latest: [], movies: [], series: [], anime: [] });
+        const activeVideo = ref(null);
+        const detailSources = ref([]);
+        const currentDetailSourceIdx = ref(0);
+        const playSources = ref([]);
+        const currentSourceIdx = ref(0);
+        const currentEpisodeIdx = ref(0);
+        const videoPlayer = ref(null);
+        const playLoading = ref(false);
+        let hls = null;
+
+        const toast = reactive({ show: false, message: '', type: 'info' });
+        const hotKeywords = ['庆余年第二季', '完美世界', '凡人修仙传', '哪吒', '暗河传', '唐探1900', '热辣滚烫', '入青云', '长安的荔枝', '神印王座'];
+        const topNav = [
+            { key: 'home', name: '首页' },
+            { key: 'movie', name: '电影', match: ['电影', '动作片', '喜剧片', '爱情片'] },
+            { key: 'series', name: '连续剧', match: ['电视剧', '国产剧', '欧美剧', '韩剧', '日剧'] },
+            { key: 'anime', name: '动漫', match: ['动漫', '国产动漫', '日韩动漫'] },
+            { key: 'show', name: '综艺纪录', match: ['综艺', '纪录片'] },
+            { key: 'short', name: '短剧', match: ['短剧', '爽文短剧', '女频恋爱'] }
+        ];
+
+        function triggerToast(message, type = 'info') {
+            toast.message = message;
+            toast.type = type;
+            toast.show = true;
+            setTimeout(() => toast.show = false, 3200);
+        }
+
+        function findSource(id) {
+            return sources.value.find(source => source.id === id);
+        }
+
+        function stripHtml(value) {
+            return (value || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').trim();
+        }
+
+        function getPosterUrl(url) {
+            return url || FALLBACK_POSTER;
+        }
+
+        function handlePosterError(event) {
+            event.target.src = FALLBACK_POSTER;
+        }
+
+        async function fetchWithFallback(targetUrl) {
+            const currentProxyId = selectedProxyId.value || localStorage.getItem('my_cms_proxy') || 'allorigins';
+            const queue = [
+                ...PROXIES.filter(proxy => proxy.id === currentProxyId),
+                ...PROXIES.filter(proxy => proxy.id !== currentProxyId)
+            ];
+            let lastError = null;
+            for (const proxy of queue) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 10000);
+                    const response = await fetch(proxy.getUrl(targetUrl), { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const text = await response.text();
+                    if (text.includes('不支持搜索')) {
+                        const err = new Error('当前采集源不支持关键词搜索');
+                        err.sourceUnsupported = true;
+                        throw err;
+                    }
+                    const data = JSON.parse(text);
+                    localStorage.setItem('my_cms_proxy', proxy.id);
+                    return data;
+                } catch (error) {
+                    if (error.sourceUnsupported) throw error;
+                    lastError = error;
+                    console.warn(`[代理失败] ${proxy.name}: ${error.message}`);
+                }
+            }
+            throw lastError || new Error('代理通道不可用');
+        }
+
+        function apiUrl(baseUrl, params) {
+            const query = new URLSearchParams(params);
+            return `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}${query.toString()}`;
+        }
+
+        async function fetchCategories(source = activeHomeSource.value) {
+            try {
+                const data = await fetchWithFallback(apiUrl(source.url, { ac: 'list' }));
+                presetCategories.value = Array.isArray(data.class) ? data.class.map(item => ({ id: item.type_id, name: item.type_name })) : [];
+            } catch (error) {
+                presetCategories.value = [];
+            }
+        }
+
+        async function fetchList(source, options = {}) {
+            const params = { ac: 'detail', pg: String(options.page || 1) };
+            if (options.categoryId) params.t = options.categoryId;
+            if (options.keyword) params.wd = options.keyword;
+            return fetchWithFallback(apiUrl(source.url, params));
+        }
+
+        async function localScanSearch(source, keyword) {
+            const matched = [];
+            for (let page = 1; page <= 8; page++) {
+                const data = await fetchList(source, { page });
+                if (Array.isArray(data.list)) {
+                    matched.push(...data.list.filter(item => [item.vod_name, item.vod_sub, item.vod_actor, item.vod_director].some(text => (text || '').includes(keyword))));
+                }
+                if (matched.length >= 20 || page >= (parseInt(data.pagecount) || 1)) break;
+            }
+            return { list: matched.slice(0, 20), pagecount: 1 };
+        }
+
+        async function loadHome() {
+            loading.value = true;
+            try {
+                await fetchCategories(activeHomeSource.value);
+                const latest = await fetchList(activeHomeSource.value, { page: 1 });
+                homeSections.latest = latest.list || [];
+                videos.value = latest.list || [];
+                totalPages.value = Math.min(parseInt(latest.pagecount) || 1, 100);
+                currentPage.value = 1;
+                await loadHomeSection('movies', ['电影', '电影片', '动作片', '剧情片']);
+                await loadHomeSection('series', ['国产剧', '电视剧', '连续剧']);
+                await loadHomeSection('anime', ['动漫', '国产动漫', '日韩动漫']);
+            } catch (error) {
+                errorMsg.value = '首页内容加载失败，请稍后刷新。';
+            } finally {
+                loading.value = false;
+            }
+        }
+
+        async function loadHomeSection(key, names) {
+            const cat = presetCategories.value.find(item => names.some(name => item.name.includes(name)));
+            try {
+                const data = await fetchList(activeHomeSource.value, { page: 1, categoryId: cat?.id });
+                homeSections[key] = (data.list || []).slice(0, 12);
+            } catch {
+                homeSections[key] = [];
+            }
+        }
+
+        const heroVideo = computed(() => homeSections.movies[0] || homeSections.latest[0] || null);
+
+        async function setHomeSource(sourceId) {
+            activeSourceId.value = sourceId;
+            localStorage.setItem('my_cms_active_source_id', sourceId);
+            selectedCategory.value = null;
+            await loadHome();
+        }
+
+        function saveSources() {
+            localStorage.setItem('my_cms_multi_sources', JSON.stringify(sources.value));
+        }
+
+        async function addNewSource() {
+            const name = newSource.name.trim();
+            const url = newSource.url.trim();
+            if (!name || !url) return;
+            if (sources.value.some(source => source.url === url)) {
+                triggerToast('该采集源已存在', 'info');
+                return;
+            }
+            sources.value.push({ id: `source_${Date.now()}`, name, url });
+            newSource.name = '';
+            newSource.url = '';
+            saveSources();
+            triggerToast('采集源已添加', 'success');
+        }
+
+        async function deleteSource(id) {
+            if (sources.value.length <= 1) return;
+            sources.value = sources.value.filter(source => source.id !== id);
+            if (activeSourceId.value === id) {
+                activeSourceId.value = sources.value[0].id;
+                localStorage.setItem('my_cms_active_source_id', activeSourceId.value);
+                await loadHome();
+            }
+            saveSources();
+        }
+
+        async function resetSources() {
+            sources.value = [...DEFAULT_SOURCES];
+            activeSourceId.value = DEFAULT_SOURCES[0].id;
+            saveSources();
+            localStorage.setItem('my_cms_active_source_id', activeSourceId.value);
+            await loadHome();
+            triggerToast('已恢复默认采集源', 'success');
+        }
+
+        function saveProxy() {
+            localStorage.setItem('my_cms_proxy', selectedProxyId.value);
+            triggerToast('代理通道已更新', 'success');
+        }
+
+        async function handleGlobalSearch() {
+            const keyword = (searchInputEl.value?.value || searchQuery.value).trim();
+            if (!keyword) return;
+            searchQuery.value = keyword;
+            lastSearchKeyword.value = keyword;
+            viewMode.value = 'search';
+            loading.value = true;
+            errorMsg.value = '';
+            searchResults.value = [];
+
+            const results = [];
+            for (const source of sources.value) {
+                try {
+                    let data;
+                    try {
+                        data = await fetchList(source, { keyword, page: 1 });
+                    } catch (error) {
+                        if (error.sourceUnsupported) {
+                            data = await localScanSearch(source, keyword);
+                        } else {
+                            throw error;
+                        }
+                    }
+                    (data.list || []).forEach(video => results.push({ ...video, source_id: source.id, source_name: source.name }));
+                } catch (error) {
+                    console.warn(`[搜索跳过] ${source.name}: ${error.message}`);
+                }
+            }
+            searchResults.value = groupSearchResults(results);
+            if (!searchResults.value.length) errorMsg.value = '没有搜索到相关内容，请换一个关键词。';
+            loading.value = false;
+        }
+
+        function groupSearchResults(items) {
+            const map = new Map();
+            items.forEach(video => {
+                const key = video.vod_name;
+                if (!map.has(key)) {
+                    map.set(key, { ...video, key, sources: [], sourceNames: '' });
+                }
+                const group = map.get(key);
+                if (!group.sources.some(source => source.source_id === video.source_id)) {
+                    group.sources.push(video);
+                }
+                group.sourceNames = group.sources.map(item => item.source_name).join(' / ');
+                if (!group.vod_pic && video.vod_pic) group.vod_pic = video.vod_pic;
+            });
+            return Array.from(map.values()).sort((a, b) => b.sources.length - a.sources.length);
+        }
+
+        function quickSearch(word) {
+            searchQuery.value = word;
+            handleGlobalSearch();
+        }
+
+        async function fetchVideos(page = 1) {
+            loading.value = true;
+            try {
+                const data = await fetchList(activeHomeSource.value, { page, categoryId: selectedCategory.value?.id });
+                videos.value = data.list || [];
+                totalPages.value = Math.min(parseInt(data.pagecount) || 1, 100);
+                currentPage.value = page;
+            } catch (error) {
+                triggerToast('当前分类加载失败', 'error');
+            } finally {
+                loading.value = false;
+            }
+        }
+
+        async function openCategory(cat) {
+            selectedCategory.value = cat;
+            selectedTopKey.value = cat ? 'category' : 'home';
+            viewMode.value = 'category';
+            await fetchVideos(1);
+        }
+
+        async function openTopCategory(item) {
+            selectedTopKey.value = item.key;
+            if (item.key === 'home') {
+                viewMode.value = 'home';
+                return;
+            }
+            const cat = presetCategories.value.find(category => item.match?.some(name => category.name.includes(name)));
+            await openCategory(cat || null);
+        }
+
+        async function handleSourceSwitch() {
+            localStorage.setItem('my_cms_active_source_id', activeSourceId.value);
+            selectedCategory.value = null;
+            await fetchCategories(activeHomeSource.value);
+            await fetchVideos(1);
+        }
+
+        function changePage(page) {
+            if (page < 1 || page > totalPages.value) return;
+            fetchVideos(page);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function openSearchResult(item) {
+            detailSources.value = item.sources;
+            currentDetailSourceIdx.value = 0;
+            openDetailFromVideo(item.sources[0], findSource(item.sources[0].source_id));
+        }
+
+        function openDetailFromVideo(video, source) {
+            detailSources.value = detailSources.value.length ? detailSources.value : [{ ...video, source_id: source?.id || activeSourceId.value, source_name: source?.name || getActiveSourceName() }];
+            activeVideo.value = video;
+            playSources.value = parsePlayUrls(video.vod_play_url);
+            currentSourceIdx.value = 0;
+            currentEpisodeIdx.value = 0;
+            setTimeout(() => {
+                const first = playSources.value?.[0]?.episodes?.[0];
+                if (first) initVideoPlayer(first.url);
+            }, 150);
+        }
+
+        function selectDetailSource(index) {
+            currentDetailSourceIdx.value = index;
+            const video = detailSources.value[index];
+            activeVideo.value = video;
+            playSources.value = parsePlayUrls(video.vod_play_url);
+            const first = playSources.value?.[0]?.episodes?.[0];
+            if (first) initVideoPlayer(first.url);
+        }
+
+        function parsePlayUrls(rawUrlStr) {
+            if (!rawUrlStr) return [];
+            return rawUrlStr.split('$$$').map((group, index) => {
+                const episodes = group.split('#').map(ep => {
+                    const parts = ep.split('$');
+                    if (parts.length >= 2) return { name: parts[0].trim(), url: parts[1].trim() };
+                    if (parts[0]) return { name: `播放源-${index + 1}`, url: parts[0].trim() };
+                    return null;
+                }).filter(Boolean);
+                return { sourceName: `播放线路 ${index + 1}`, episodes };
+            }).filter(group => group.episodes.length);
+        }
+
+        function initVideoPlayer(url) {
+            const video = videoPlayer.value || document.querySelector('video');
+            if (!video || !url) return;
+            playLoading.value = true;
+            if (hls) hls.destroy();
+            if (Hls.isSupported()) {
+                hls = new Hls({ maxMaxBufferLength: 30 });
+                hls.loadSource(url);
+                hls.attachMedia(video);
+                hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                    playLoading.value = false;
+                    video.play().catch(() => {});
+                });
+                hls.on(Hls.Events.ERROR, (event, data) => {
+                    if (data.fatal) hls.recoverMediaError();
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = url;
+                video.addEventListener('loadedmetadata', () => {
+                    playLoading.value = false;
+                    video.play();
+                }, { once: true });
+            } else {
+                playLoading.value = false;
+                triggerToast('当前浏览器不支持 HLS 播放', 'error');
+            }
+        }
+
+        function playEpisode(url, sourceIdx, epIdx) {
+            currentSourceIdx.value = sourceIdx;
+            currentEpisodeIdx.value = epIdx;
+            initVideoPlayer(url);
+        }
+
+        function closeDetail() {
+            if (hls) {
+                hls.destroy();
+                hls = null;
+            }
+            const video = videoPlayer.value || document.querySelector('video');
+            if (video) {
+                video.pause();
+                video.src = '';
+            }
+            activeVideo.value = null;
+            detailSources.value = [];
+            playSources.value = [];
+        }
+
+        function isFavorited(vodId) {
+            return favoriteVideos.value.some(item => item.vod_id === vodId);
+        }
+
+        function toggleFavorite(video) {
+            const index = favoriteVideos.value.findIndex(item => item.vod_id === video.vod_id);
+            if (index >= 0) {
+                favoriteVideos.value.splice(index, 1);
+                triggerToast('已取消收藏');
+            } else {
+                favoriteVideos.value.push({ ...video, source_id: detailSources.value[currentDetailSourceIdx.value]?.source_id || activeSourceId.value, source_name: detailSources.value[currentDetailSourceIdx.value]?.source_name || getActiveSourceName() });
+                triggerToast('已加入收藏', 'success');
+            }
+            localStorage.setItem('my_cms_favorites', JSON.stringify(favoriteVideos.value));
+        }
+
+        function getActiveSourceName() {
+            return activeHomeSource.value?.name || '默认源';
+        }
+
+        onMounted(async () => {
+            const savedSources = localStorage.getItem('my_cms_multi_sources');
+            if (savedSources) {
+                try {
+                    const parsed = JSON.parse(savedSources).filter(source => source.id !== 'source_ffzy');
+                    const sourceMap = new Map(parsed.map(source => [source.id, source]));
+                    DEFAULT_SOURCES.forEach(source => sourceMap.set(source.id, source));
+                    sources.value = Array.from(sourceMap.values());
+                    saveSources();
+                } catch {
+                    sources.value = [...DEFAULT_SOURCES];
+                }
+            }
+            const savedSource = localStorage.getItem('my_cms_active_source_id');
+            if (savedSource && sources.value.some(source => source.id === savedSource)) activeSourceId.value = savedSource;
+            const savedFavs = localStorage.getItem('my_cms_favorites');
+            if (savedFavs) {
+                try { favoriteVideos.value = JSON.parse(savedFavs); } catch { favoriteVideos.value = []; }
+            }
+            await loadHome();
+        });
+
+        return {
+            viewMode, settingsOpen, selectedTopKey, topNav, sources, activeSourceId, activeHomeSource, searchQuery, searchInputEl,
+            lastSearchKeyword, selectedCategory, presetCategories, visibleCategories, videos, searchResults,
+            favoriteVideos, currentPage, totalPages, loading, errorMsg, homeSections, heroVideo, activeVideo,
+            detailSources, currentDetailSourceIdx, playSources, currentSourceIdx, currentEpisodeIdx, videoPlayer,
+            playLoading, toast, hotKeywords, proxies: PROXIES, selectedProxyId, newSource,
+            handleGlobalSearch, quickSearch, setHomeSource, addNewSource, deleteSource, resetSources, saveProxy, openCategory,
+            openTopCategory, handleSourceSwitch, changePage, openSearchResult, openDetailFromVideo, selectDetailSource,
+            playEpisode, closeDetail, isFavorited, toggleFavorite, stripHtml, getPosterUrl, handlePosterError, findSource
+        };
+    }
+}).mount('#app');
+</script>
+</body>
+</html>
