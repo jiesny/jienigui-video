@@ -16,10 +16,23 @@
             width: 100%;
             max-width: 100%;
             overflow-x: hidden;
-            overflow-y: scroll;
+            overflow-y: auto;
             scrollbar-gutter: stable;
+            scrollbar-width: none;
         }
-        body { background: #0a0a0a; }
+        html::-webkit-scrollbar,
+        body::-webkit-scrollbar {
+            width: 0;
+            height: 0;
+            display: none;
+        }
+        body {
+            background: #0a0a0a;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+            scrollbar-width: none;
+        }
         *, *::before, *::after { box-sizing: border-box; }
         #app { width: 100%; max-width: 100vw; overflow-x: hidden; }
         .nav-glass { background: rgba(10, 10, 10, .86); backdrop-filter: blur(18px); }
