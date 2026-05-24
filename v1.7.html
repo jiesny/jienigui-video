@@ -911,9 +911,10 @@ createApp({
 
         function openDetailFromVideo(video, source, push = true) {
             settingsOpen.value = false;
-            detailSources.value = detailSources.value.length ? detailSources.value : [{ ...video, source_id: source?.id || activeSourceId.value, source_name: source?.name || getActiveSourceName() }];
+            const sourceId = video.source_id || source?.id || activeSourceId.value;
+            detailSources.value = detailSources.value.length ? detailSources.value : [{ ...video, source_id: sourceId, source_name: source?.name || getActiveSourceName() }];
             activeVideo.value = video;
-            playSources.value = parsePlayUrls(video.vod_play_url);
+            playSources.value = parsePlayUrls(video.vod_play_url, sourceId);
             currentSourceIdx.value = 0;
             currentEpisodeIdx.value = 0;
             setTimeout(() => {
@@ -927,14 +928,17 @@ createApp({
             currentDetailSourceIdx.value = index;
             const video = detailSources.value[index];
             activeVideo.value = video;
-            playSources.value = parsePlayUrls(video.vod_play_url);
+            playSources.value = parsePlayUrls(video.vod_play_url, video.source_id);
             const first = playSources.value?.[0]?.episodes?.[0];
             if (first) initVideoPlayer(first.url);
         }
 
-        function parsePlayUrls(rawUrlStr) {
+        function parsePlayUrls(rawUrlStr, sourceId = '') {
             if (!rawUrlStr) return [];
-            return rawUrlStr.split('$$$').map((group, index) => {
+            const groups = sourceId === 'source_xigua'
+                ? rawUrlStr.split('$$$').slice(1)
+                : rawUrlStr.split('$$$');
+            return groups.map((group, index) => {
                 const episodes = group.split('#').map(ep => {
                     const parts = ep.split('$');
                     if (parts.length >= 2) return { name: parts[0].trim(), url: parts[1].trim() };
