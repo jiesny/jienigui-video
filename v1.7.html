@@ -342,9 +342,7 @@
                 <section class="space-y-3">
                     <div class="flex items-center justify-between">
                         <h3 class="font-bold">当前采集源</h3>
-                        <button @click="resetSources" class="text-xs text-rose-300 hover:text-rose-200">
-                            <i class="fa-solid fa-rotate-left mr-1"></i>恢复默认
-                        </button>
+                        <span class="text-xs text-zinc-500">只读配置</span>
                     </div>
                     <div class="space-y-2">
                         <div v-for="source in sources" :key="source.id"
@@ -354,26 +352,10 @@
                                     <div class="font-bold text-sm truncate">{{ source.name }}</div>
                                     <div class="text-[11px] text-zinc-500 truncate mt-1">{{ source.url }}</div>
                                 </button>
-                                <button @click="deleteSource(source.id)" :disabled="sources.length <= 1"
-                                    class="shrink-0 w-8 h-8 rounded-lg bg-zinc-950 border border-white/10 text-zinc-500 hover:text-rose-300 disabled:opacity-30">
-                                    <i class="fa-solid fa-trash text-xs"></i>
-                                </button>
                             </div>
                         </div>
                     </div>
-                </section>
-
-                <section class="space-y-3">
-                    <h3 class="font-bold">添加采集源</h3>
-                    <form @submit.prevent="addNewSource" class="space-y-2">
-                        <input v-model="newSource.name" type="text" placeholder="采集源名称"
-                            class="w-full bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-rose-500">
-                        <input v-model="newSource.url" type="url" placeholder="CMS JSON 接口地址，以 http 开头"
-                            class="w-full bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-rose-500">
-                        <button class="w-full h-10 rounded-lg bg-rose-600 hover:bg-rose-500 text-sm font-bold">
-                            <i class="fa-solid fa-plus mr-1"></i>加入采集源
-                        </button>
-                    </form>
+                    <p class="text-xs text-zinc-500 leading-relaxed">GitHub Pages 是静态站，前端不能修改服务器端采集源。这里仅允许临时切换当前浏览源；默认源需要在代码中维护。</p>
                 </section>
 
                 <section class="space-y-3">
@@ -490,7 +472,6 @@ createApp({
         const sources = ref([...DEFAULT_SOURCES]);
         const activeSourceId = ref('source_lzzy');
         const selectedProxyId = ref(localStorage.getItem('my_cms_proxy') || 'allorigins');
-        const newSource = reactive({ name: '', url: '' });
         const activeHomeSource = computed(() => findSource(activeSourceId.value) || sources.value[0]);
         const searchQuery = ref('');
         const searchInputEl = ref(null);
@@ -692,45 +673,6 @@ createApp({
             localStorage.setItem('my_cms_active_source_id', sourceId);
             selectedCategory.value = null;
             await loadHome();
-        }
-
-        function saveSources() {
-            localStorage.setItem('my_cms_multi_sources', JSON.stringify(sources.value));
-        }
-
-        async function addNewSource() {
-            const name = newSource.name.trim();
-            const url = newSource.url.trim();
-            if (!name || !url) return;
-            if (sources.value.some(source => source.url === url)) {
-                triggerToast('该采集源已存在', 'info');
-                return;
-            }
-            sources.value.push({ id: `source_${Date.now()}`, name, url });
-            newSource.name = '';
-            newSource.url = '';
-            saveSources();
-            triggerToast('采集源已添加', 'success');
-        }
-
-        async function deleteSource(id) {
-            if (sources.value.length <= 1) return;
-            sources.value = sources.value.filter(source => source.id !== id);
-            if (activeSourceId.value === id) {
-                activeSourceId.value = sources.value[0].id;
-                localStorage.setItem('my_cms_active_source_id', activeSourceId.value);
-                await loadHome();
-            }
-            saveSources();
-        }
-
-        async function resetSources() {
-            sources.value = [...DEFAULT_SOURCES];
-            activeSourceId.value = DEFAULT_SOURCES[0].id;
-            saveSources();
-            localStorage.setItem('my_cms_active_source_id', activeSourceId.value);
-            await loadHome();
-            triggerToast('已恢复默认采集源', 'success');
         }
 
         function saveProxy() {
@@ -948,28 +890,9 @@ createApp({
         }
 
         onMounted(async () => {
-            const savedSources = localStorage.getItem('my_cms_multi_sources');
-            if (savedSources) {
-                try {
-                    sources.value = JSON.parse(savedSources).filter(source => source.id !== 'source_ffzy');
-                } catch {
-                    sources.value = [...DEFAULT_SOURCES];
-                    saveSources();
-                }
-            } else {
-                sources.value = [...DEFAULT_SOURCES];
-                saveSources();
-            }
-
-            const savedSchemaVersion = localStorage.getItem('my_cms_source_schema_version');
-            if (savedSchemaVersion !== SOURCE_SCHEMA_VERSION) {
-                const existingIds = new Set(sources.value.map(source => source.id));
-                DEFAULT_SOURCES.forEach(source => {
-                    if (!existingIds.has(source.id)) sources.value.push(source);
-                });
-                localStorage.setItem('my_cms_source_schema_version', SOURCE_SCHEMA_VERSION);
-                saveSources();
-            }
+            sources.value = [...DEFAULT_SOURCES];
+            localStorage.removeItem('my_cms_multi_sources');
+            localStorage.removeItem('my_cms_source_schema_version');
             const savedSource = localStorage.getItem('my_cms_active_source_id');
             if (savedSource && sources.value.some(source => source.id === savedSource)) activeSourceId.value = savedSource;
             const savedFavs = localStorage.getItem('my_cms_favorites');
@@ -984,8 +907,8 @@ createApp({
             lastSearchKeyword, selectedCategory, presetCategories, visibleCategories, videos, searchResults,
             favoriteVideos, currentPage, totalPages, loading, errorMsg, homeSections, heroVideo, activeVideo,
             detailSources, currentDetailSourceIdx, playSources, currentSourceIdx, currentEpisodeIdx, videoPlayer,
-            playLoading, toast, hotKeywords, proxies: PROXIES, selectedProxyId, newSource,
-            handleGlobalSearch, quickSearch, setHomeSource, addNewSource, deleteSource, resetSources, saveProxy, openCategory,
+            playLoading, toast, hotKeywords, proxies: PROXIES, selectedProxyId,
+            handleGlobalSearch, quickSearch, setHomeSource, saveProxy, openCategory,
             openTopCategory, handleSourceSwitch, changePage, openSearchResult, openDetailFromVideo, selectDetailSource,
             playEpisode, closeDetail, isFavorited, toggleFavorite, stripHtml, getPosterUrl, handlePosterError, findSource
         };
