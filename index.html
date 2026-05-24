@@ -12,21 +12,26 @@
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #0a0a0a; }
         ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
         body { background: #0a0a0a; }
+        *, *::before, *::after { box-sizing: border-box; }
+        #app { width: 100%; max-width: 100vw; overflow-x: hidden; }
         .nav-glass { background: rgba(10, 10, 10, .86); backdrop-filter: blur(18px); }
         .poster-skeleton { background: linear-gradient(135deg, #1f2937, #111827); }
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .safe-scroll-x { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; max-width: 100%; }
+        .safe-scroll-x::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body class="text-zinc-100 selection:bg-rose-500 selection:text-white">
 <div id="app" class="min-h-screen">
     <header class="sticky top-0 z-40 nav-glass border-b border-white/10">
-        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center gap-4">
-            <button @click="viewMode='home'; selectedCategory=null; searchQuery=''" class="flex items-center gap-2 shrink-0">
+        <div class="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:h-16 sm:py-0 flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4">
+            <button @click="viewMode='home'; selectedCategory=null; searchQuery=''" class="flex items-center gap-2 shrink-0 min-w-0">
                 <span class="w-9 h-9 rounded-lg bg-rose-600 flex items-center justify-center shadow-lg shadow-rose-900/30">
                     <i class="fa-solid fa-clapperboard"></i>
                 </span>
-                <span class="font-black text-lg tracking-wide">杰尼龟影视</span>
+                <span class="font-black text-base sm:text-lg tracking-wide whitespace-nowrap">杰尼龟影视</span>
             </button>
 
             <nav class="hidden lg:flex items-center gap-1 text-sm text-zinc-400">
@@ -36,7 +41,7 @@
                 </button>
             </nav>
 
-            <form @submit.prevent="handleGlobalSearch" class="ml-auto flex-1 max-w-xl relative">
+            <form @submit.prevent="handleGlobalSearch" class="order-3 sm:order-none w-full sm:w-auto sm:ml-auto flex-1 sm:max-w-xl relative min-w-0">
                 <input ref="searchInputEl" v-model="searchQuery" type="text" placeholder="搜索电影、剧集、动漫、演员..."
                     class="w-full h-10 bg-zinc-900 border border-white/10 rounded-lg pl-4 pr-12 text-sm outline-none focus:border-rose-500 placeholder-zinc-500">
                 <button class="absolute right-1 top-1 w-8 h-8 rounded-lg bg-rose-600 hover:bg-rose-500 transition" title="搜索">
@@ -47,14 +52,14 @@
             <button @click="viewMode='favorites'" class="hidden sm:flex h-10 px-3 rounded-lg bg-zinc-900 border border-white/10 items-center gap-2 text-sm text-zinc-300 hover:text-white">
                 <i class="fa-solid fa-heart text-rose-500"></i> 收藏
             </button>
-            <button @click="settingsOpen=true" class="h-10 w-10 rounded-lg bg-zinc-900 border border-white/10 text-zinc-300 hover:text-white" title="站点设置">
+            <button @click="settingsOpen=true" class="ml-auto sm:ml-0 h-10 w-10 shrink-0 rounded-lg bg-zinc-900 border border-white/10 text-zinc-300 hover:text-white" title="站点设置">
                 <i class="fa-solid fa-sliders"></i>
             </button>
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 py-6">
-        <section v-if="toast.show" class="fixed top-20 right-4 z-50 max-w-sm rounded-lg border border-white/10 bg-zinc-950/95 px-4 py-3 shadow-2xl">
+    <main class="max-w-7xl mx-auto px-3 sm:px-4 py-5 sm:py-6">
+        <section v-if="toast.show" class="fixed top-24 sm:top-20 right-3 left-3 sm:left-auto z-50 sm:max-w-sm rounded-lg border border-white/10 bg-zinc-950/95 px-4 py-3 shadow-2xl">
             <div class="flex items-center gap-2 text-sm" :class="toast.type === 'error' ? 'text-rose-300' : toast.type === 'success' ? 'text-emerald-300' : 'text-amber-300'">
                 <i :class="toast.type === 'error' ? 'fa-solid fa-circle-xmark' : toast.type === 'success' ? 'fa-solid fa-circle-check' : 'fa-solid fa-circle-info'"></i>
                 <span>{{ toast.message }}</span>
@@ -63,17 +68,17 @@
 
         <section v-if="viewMode === 'home'" class="space-y-8">
             <div class="grid grid-cols-1 lg:grid-cols-[1.25fr_.75fr] gap-5">
-                <div class="relative min-h-[310px] rounded-lg overflow-hidden bg-zinc-900 border border-white/10">
+                <div class="relative min-h-[260px] sm:min-h-[310px] rounded-lg overflow-hidden bg-zinc-900 border border-white/10">
                     <img v-if="heroVideo" :src="getPosterUrl(heroVideo.vod_pic)" @error="handlePosterError"
                         class="absolute inset-0 w-full h-full object-cover opacity-45">
                     <div class="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent"></div>
-                    <div class="relative h-full p-6 sm:p-8 flex flex-col justify-end max-w-2xl">
-                        <div class="flex items-center gap-2 text-xs text-rose-300 mb-3">
+                    <div class="relative h-full p-5 sm:p-8 flex flex-col justify-end max-w-2xl">
+                        <div class="flex flex-wrap items-center gap-2 text-xs text-rose-300 mb-3">
                             <span class="px-2 py-1 rounded bg-rose-600/20 border border-rose-500/30">今日热播</span>
                             <span>{{ heroVideo?.type_name || '多源推荐' }}</span>
                             <span>{{ heroVideo?.vod_remarks || '高清' }}</span>
                         </div>
-                        <h1 class="text-3xl sm:text-5xl font-black leading-tight mb-3">{{ heroVideo?.vod_name || '杰尼龟影视' }}</h1>
+                        <h1 class="text-2xl sm:text-5xl font-black leading-tight mb-3 break-words">{{ heroVideo?.vod_name || '杰尼龟影视' }}</h1>
                         <p class="text-sm text-zinc-300 line-clamp-2 mb-5">{{ stripHtml(heroVideo?.vod_content) || '聚合多个影视采集源，先找片，再在详情里选择可用播放源。' }}</p>
                         <div class="flex flex-wrap gap-2">
                             <button v-if="heroVideo" @click="openDetailFromVideo(heroVideo, activeHomeSource)" class="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-sm font-bold">
@@ -117,7 +122,7 @@
                     <h2 class="font-bold">分类导航</h2>
                     <button @click="viewMode='category'" class="text-xs text-rose-300 hover:text-rose-200">全部分类</button>
                 </div>
-                <div class="flex gap-2 overflow-x-auto pb-1">
+                <div class="safe-scroll-x flex gap-2 pb-1">
                     <button v-for="cat in visibleCategories" :key="cat.id" @click="openCategory(cat)"
                         class="shrink-0 px-3 py-2 rounded-lg bg-zinc-900 border border-white/10 text-sm text-zinc-300 hover:border-rose-500 hover:text-white">
                         {{ cat.name }}
@@ -185,7 +190,7 @@
                 </select>
             </div>
 
-            <div class="flex gap-2 overflow-x-auto pb-1">
+            <div class="safe-scroll-x flex gap-2 pb-1">
                 <button @click="openCategory(null)" :class="['shrink-0 px-3 py-2 rounded-lg text-sm border', !selectedCategory ? 'bg-rose-600 border-rose-500' : 'bg-zinc-900 border-white/10 text-zinc-300']">全部</button>
                 <button v-for="cat in presetCategories" :key="cat.id" @click="openCategory(cat)"
                     :class="['shrink-0 px-3 py-2 rounded-lg text-sm border', selectedCategory?.id === cat.id ? 'bg-rose-600 border-rose-500' : 'bg-zinc-900 border-white/10 text-zinc-300 hover:text-white']">
@@ -408,13 +413,13 @@ const VideoRow = {
                 <h2 class="text-xl font-black">{{ title }}</h2>
                 <span class="text-xs text-zinc-500">查看更多</span>
             </div>
-            <div v-if="items && items.length" class="flex gap-4 overflow-x-auto pb-2">
-                <div v-for="video in items.slice(0, 12)" :key="title + video.vod_id" class="w-36 sm:w-40 lg:w-44 shrink-0">
+            <div v-if="items && items.length" class="safe-scroll-x flex gap-3 sm:gap-4 pb-2">
+                <div v-for="video in items.slice(0, 12)" :key="title + video.vod_id" class="w-[42vw] max-w-40 sm:w-40 lg:w-44 shrink-0">
                     <video-card :video="video" @open="$emit('open', video, source)"></video-card>
                 </div>
             </div>
-            <div v-else class="flex gap-4 overflow-hidden">
-                <div v-for="i in 6" :key="i" class="w-36 sm:w-40 lg:w-44 shrink-0 rounded-lg bg-zinc-950 border border-white/10 aspect-[3/4] animate-pulse"></div>
+            <div v-else class="safe-scroll-x flex gap-3 sm:gap-4 pb-2">
+                <div v-for="i in 6" :key="i" class="w-[42vw] max-w-40 sm:w-40 lg:w-44 shrink-0 rounded-lg bg-zinc-950 border border-white/10 aspect-[3/4] animate-pulse"></div>
             </div>
         </section>
     `
