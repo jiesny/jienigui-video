@@ -123,7 +123,7 @@
                         <h1 class="text-2xl sm:text-5xl font-black leading-tight mb-3 break-words">{{ heroVideo?.vod_name || '杰尼龟影视' }}</h1>
                         <p class="text-sm text-zinc-300 line-clamp-2 mb-5">{{ stripHtml(heroVideo?.vod_content) || '聚合多个影视采集源，先找片，再在详情里选择可用播放源。' }}</p>
                         <div class="flex flex-wrap gap-2">
-                            <button v-if="heroVideo" @click="openDetailFromVideo(heroVideo, activeHomeSource)" class="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-sm font-bold">
+                            <button v-if="heroVideo" @click="openDetailFromVideo(heroVideo, findSource(heroVideo.source_id))" class="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-sm font-bold">
                                 <i class="fa-solid fa-play mr-1"></i> 立即观看
                             </button>
                             <button @click="openCategory(null)" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-sm font-bold">
@@ -146,15 +146,15 @@
                     </div>
                     <div class="pt-3 border-t border-white/10">
                         <div class="flex items-center justify-between mb-3">
-                            <h2 class="font-bold">采集源</h2>
-                            <span class="text-xs text-zinc-500">{{ sources.length }} 个</span>
+                            <h2 class="font-bold">聚合源</h2>
+                            <span class="text-xs text-zinc-500">已接入 {{ sources.length }} 个</span>
                         </div>
                         <div class="mb-3 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-100">
                             友情提示：建议使用新加坡节点进行科学上网，播放和搜索稳定性会更好。
                         </div>
                         <div class="grid grid-cols-2 gap-2">
-                            <button v-for="source in sources" :key="source.id" @click="setHomeSource(source.id)"
-                                :class="['px-3 py-2 rounded-lg text-xs border transition text-left', activeSourceId === source.id ? 'bg-rose-600/15 border-rose-500 text-white' : 'bg-zinc-900 border-white/10 text-zinc-400 hover:text-white']">
+                            <button v-for="source in sources" :key="source.id"
+                                class="px-3 py-2 rounded-lg text-xs border text-left bg-zinc-900 border-white/10 text-zinc-300 cursor-default">
                                 {{ source.name }}
                             </button>
                         </div>
@@ -176,10 +176,10 @@
                 </div>
             </section>
 
-            <video-row title="最近更新" :items="homeSections.latest" :source="activeHomeSource" @open="openDetailFromVideo"></video-row>
-            <video-row title="近期热门电影" :items="homeSections.movies" :source="activeHomeSource" @open="openDetailFromVideo"></video-row>
-            <video-row title="近期热门剧集" :items="homeSections.series" :source="activeHomeSource" @open="openDetailFromVideo"></video-row>
-            <video-row title="热播动漫" :items="homeSections.anime" :source="activeHomeSource" @open="openDetailFromVideo"></video-row>
+            <video-row title="最近更新" :items="homeSections.latest" @open="openDetailFromVideo"></video-row>
+            <video-row title="近期热门电影" :items="homeSections.movies" @open="openDetailFromVideo"></video-row>
+            <video-row title="近期热门剧集" :items="homeSections.series" @open="openDetailFromVideo"></video-row>
+            <video-row title="热播动漫" :items="homeSections.anime" @open="openDetailFromVideo"></video-row>
         </section>
 
         <section v-else-if="viewMode === 'search'" class="space-y-5">
@@ -230,17 +230,19 @@
                     <h1 class="text-2xl font-black">{{ selectedCategory ? selectedCategory.name : '分类浏览' }}</h1>
                     <p class="text-sm text-zinc-500 mt-1">已将不同采集源的小分类统一映射为大类。</p>
                 </div>
-                <select v-model="activeSourceId" @change="handleSourceSwitch" class="bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none">
-                    <option v-for="source in sources" :key="source.id" :value="source.id" class="bg-zinc-950">{{ source.name }}</option>
-                </select>
+                <div class="px-3 py-2 rounded-lg bg-zinc-900 border border-white/10 text-sm text-zinc-300">全源聚合</div>
             </div>
 
-            <div class="safe-scroll-x flex gap-2 pb-1">
-                <button @click="openCategory(null)" :class="['shrink-0 px-3 py-2 rounded-lg text-sm border', !selectedCategory ? 'bg-rose-600 border-rose-500' : 'bg-zinc-900 border-white/10 text-zinc-300']">全部</button>
-                <button v-for="cat in visibleCategories" :key="cat.key" @click="openCategory(cat)"
-                    :class="['shrink-0 px-3 py-2 rounded-lg text-sm border', selectedCategory?.key === cat.key ? 'bg-rose-600 border-rose-500' : 'bg-zinc-900 border-white/10 text-zinc-300 hover:text-white']">
-                    {{ cat.name }}
-                </button>
+            <div class="rounded-lg border border-white/10 bg-zinc-950 p-4 space-y-3">
+                <div v-for="group in activeFilterGroups" :key="group.key" class="grid grid-cols-[64px_1fr] gap-3 items-start">
+                    <div class="pt-2 text-sm font-bold text-zinc-300">{{ group.name }}：</div>
+                    <div class="flex flex-wrap gap-2">
+                        <button @click="setSmartFilter(group.key, '')" :class="filterButtonClass(group.key, '')">{{ group.key === 'sort' ? '综合' : '全部' }}</button>
+                        <button v-for="item in group.items" :key="group.key + item" @click="setSmartFilter(group.key, item)" :class="filterButtonClass(group.key, item)">
+                            {{ item }}
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <div v-if="loading" class="py-20 text-center text-zinc-400">
@@ -248,7 +250,7 @@
                 正在加载内容...
             </div>
             <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                <video-card v-for="video in videos" :key="video.vod_id" :video="video" @open="openDetailFromVideo(video, activeHomeSource)"></video-card>
+                <video-card v-for="video in videos" :key="video.source_id + '-' + video.vod_id" :video="video" @open="openDetailFromVideo(video, findSource(video.source_id))"></video-card>
             </div>
             <div class="flex justify-center gap-2 pt-4">
                 <button @click="changePage(currentPage - 1)" :disabled="currentPage <= 1" class="px-4 py-2 rounded-lg bg-zinc-900 border border-white/10 text-sm disabled:opacity-40">上一页</button>
@@ -344,21 +346,20 @@
             <div class="p-5 space-y-6">
                 <section class="space-y-3">
                     <div class="flex items-center justify-between">
-                        <h3 class="font-bold">当前采集源</h3>
+                        <h3 class="font-bold">聚合采集源</h3>
                         <span class="text-xs text-zinc-500">只读配置</span>
                     </div>
                     <div class="space-y-2">
-                        <div v-for="source in sources" :key="source.id"
-                            :class="['rounded-lg border p-3 transition', activeSourceId === source.id ? 'border-rose-500 bg-rose-600/10' : 'border-white/10 bg-zinc-900']">
+                        <div v-for="source in sources" :key="source.id" class="rounded-lg border border-white/10 bg-zinc-900 p-3">
                             <div class="flex items-center justify-between gap-3">
-                                <button @click="setHomeSource(source.id)" class="text-left min-w-0">
+                                <div class="text-left min-w-0">
                                     <div class="font-bold text-sm truncate">{{ source.name }}</div>
                                     <div class="text-[11px] text-zinc-500 truncate mt-1">{{ source.url }}</div>
-                                </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <p class="text-xs text-zinc-500 leading-relaxed">GitHub Pages 是静态站，前端不能修改服务器端采集源。这里仅允许临时切换当前浏览源；默认源需要在代码中维护。</p>
+                    <p class="text-xs text-zinc-500 leading-relaxed">首页、分类和搜索默认聚合全部采集源；采集源增减需要在代码中维护。</p>
                 </section>
 
                 <section class="space-y-3">
@@ -413,6 +414,35 @@ const STANDARD_CATEGORIES = [
     { key: 'variety_other', name: '其他', aliases: ['伦理', '写真热舞', '两性课堂', '资讯', '娱乐新闻'] }
 ];
 
+const FILTER_GROUPS = {
+    movie: {
+        type: ['剧情', '喜剧', '动作', '爱情', '恐怖', '惊悚', '犯罪', '科幻', '悬疑', '奇幻', '冒险', '战争', '历史', '古装', '家庭', '传记', '武侠', '歌舞', '短片', '动画', '儿童', '职场'],
+        area: ['大陆', '香港', '台湾', '美国', '日本', '韩国', '英国', '法国', '德国', '印度', '泰国', '丹麦', '瑞典', '巴西', '加拿大', '俄罗斯', '意大利', '比利时', '爱尔兰', '西班牙', '澳大利亚', '其他']
+    },
+    series: {
+        type: ['剧情', '爱情', '喜剧', '犯罪', '悬疑', '古装', '动作', '家庭', '惊悚', '奇幻', '美剧', '科幻', '历史', '战争', '韩剧', '武侠', '言情', '恐怖', '冒险', '都市', '职场'],
+        area: ['大陆', '香港', '韩国', '美国', '日本', '法国', '英国', '德国', '台湾', '泰国', '印度', '其他']
+    },
+    anime: {
+        type: ['动态漫画', '剧情', '动画', '喜剧', '冒险', '动作', '奇幻', '科幻', '儿童', '搞笑', '爱情', '家庭', '短片', '热血', '益智', '悬疑', '经典', '校园', 'Anime', '运动', '亲子', '青春', '恋爱', '武侠', '惊悚'],
+        area: ['日本', '大陆', '台湾', '美国', '香港', '韩国', '英国', '法国', '德国', '印度', '其他']
+    },
+    show: {
+        type: ['纪录', '真人秀', '记录', '脱口秀', '剧情', '历史', '喜剧', '传记', '相声', '节目', '歌舞', '冒险', '运动', 'Season', '犯罪', '短片', '搞笑', '晚会'],
+        area: ['大陆', '香港', '台湾', '美国', '日本', '韩国', '其他']
+    },
+    short: {
+        type: ['王爷太子', '霸道总裁', '屌丝逆袭', '赘婿系列', '重生系列', '穿越短剧', '美女总裁', '娇妻系列', '龙王系列', '都市言情', '逆袭', '甜宠', '虐恋', '穿越', '重生', '剧情', '科幻', '武侠', '爱情', '动作', '战争', '冒险', '其它'],
+        area: []
+    }
+};
+
+const COMMON_FILTERS = {
+    lang: ['国语', '粤语', '英语', '日语', '韩语', '法语', '其他'],
+    year: ['2026', '2025', '2024', '2023', '2022', '2021', '2020', '10年代', '00年代', '90年代', '80年代', '更早'],
+    sort: ['综合', '最新', '最热', '评分']
+};
+
 const FALLBACK_POSTER = 'https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?w=500&auto=format&fit=crop&q=70';
 const URL_REPLACEMENTS = [
     ['img.image8899.net', 'img.ffzy888.com'],
@@ -463,7 +493,7 @@ const VideoRow = {
             </div>
             <div v-if="items && items.length" class="safe-scroll-x flex gap-3 sm:gap-4 pb-2">
                 <div v-for="video in items.slice(0, 12)" :key="title + video.vod_id" class="w-[42vw] max-w-40 sm:w-40 lg:w-44 shrink-0">
-                    <video-card :video="video" @open="$emit('open', video, source)"></video-card>
+                    <video-card :video="video" @open="$emit('open', video)"></video-card>
                 </div>
             </div>
             <div v-else class="safe-scroll-x flex gap-3 sm:gap-4 pb-2">
@@ -487,11 +517,24 @@ createApp({
         const searchInputEl = ref(null);
         const lastSearchKeyword = ref('');
         const selectedCategory = ref(null);
-        const presetCategories = ref([]);
+        const sourceCategories = reactive({});
+        const smartFilters = reactive({ type: '', area: '', lang: '', year: '', sort: '综合' });
         const visibleCategories = computed(() => STANDARD_CATEGORIES.map(category => ({
             ...category,
             matchedCategories: resolveStandardCategory(category)
-        })).filter(category => category.key === 'variety_other' || category.matchedCategories.length > 0));
+        })).filter(category => category.key === 'variety_other' || category.matchedCategories.length > 0 || Object.keys(sourceCategories).length === 0));
+        const activeFilterGroups = computed(() => {
+            const key = selectedCategory.value?.key || 'movie';
+            const specific = FILTER_GROUPS[key] || FILTER_GROUPS.movie;
+            const groups = [
+                { key: 'type', name: '类型', items: specific.type || [] }
+            ];
+            if (specific.area?.length) groups.push({ key: 'area', name: '地区', items: specific.area });
+            groups.push({ key: 'lang', name: '语言', items: COMMON_FILTERS.lang });
+            groups.push({ key: 'year', name: '年份', items: COMMON_FILTERS.year });
+            groups.push({ key: 'sort', name: '排序', items: COMMON_FILTERS.sort.filter(item => item !== '综合') });
+            return groups;
+        });
         const videos = ref([]);
         const searchResults = ref([]);
         const favoriteVideos = ref([]);
@@ -611,6 +654,29 @@ createApp({
 
         function findSource(id) {
             return sources.value.find(source => source.id === id);
+        }
+
+        function filterButtonClass(key, value) {
+            const current = key === 'sort' ? smartFilters.sort : smartFilters[key];
+            const active = current === value || (!value && (current === '' || (key === 'sort' && current === '综合')));
+            return [
+                'px-3 py-2 rounded-lg text-sm border transition',
+                active ? 'bg-rose-600 border-rose-500 text-white' : 'bg-zinc-900 border-white/10 text-zinc-300 hover:text-white'
+            ];
+        }
+
+        async function setSmartFilter(key, value) {
+            smartFilters[key] = key === 'sort' && !value ? '综合' : value;
+            await fetchVideos(1);
+            replaceRoute();
+        }
+
+        function resetSmartFilters() {
+            smartFilters.type = '';
+            smartFilters.area = '';
+            smartFilters.lang = '';
+            smartFilters.year = '';
+            smartFilters.sort = '综合';
         }
 
         function stripHtml(value) {
@@ -735,13 +801,13 @@ createApp({
 
         function resolveStandardCategory(standardCategory) {
             const aliases = standardCategory.aliases || [];
-            return presetCategories.value.filter(category => aliases.some(alias => category.name.includes(alias) || alias.includes(category.name)));
+            return Object.values(sourceCategories).flat().filter(category => aliases.some(alias => category.name.includes(alias) || alias.includes(category.name)));
         }
 
         function dedupeVideos(items) {
             const map = new Map();
             items.forEach(item => {
-                const key = item.vod_id || `${item.vod_name}-${item.vod_time || ''}`;
+                const key = `${item.vod_name || ''}-${item.vod_year || ''}`;
                 if (!map.has(key)) map.set(key, item);
             });
             return Array.from(map.values());
@@ -750,10 +816,17 @@ createApp({
         async function fetchCategories(source = activeHomeSource.value) {
             try {
                 const data = await fetchWithFallback(apiUrl(source.url, { ac: 'list' }));
-                presetCategories.value = Array.isArray(data.class) ? data.class.map(item => ({ id: item.type_id, name: item.type_name })) : [];
+                sourceCategories[source.id] = Array.isArray(data.class) ? data.class.map(item => ({ id: item.type_id, name: item.type_name, source_id: source.id })) : [];
             } catch (error) {
-                presetCategories.value = [];
+                sourceCategories[source.id] = [];
             }
+        }
+
+        async function fetchAllCategories() {
+            const settled = await Promise.allSettled(sources.value.map(source => fetchCategories(source)));
+            settled.forEach((result, index) => {
+                if (result.status === 'rejected') sourceCategories[sources.value[index].id] = [];
+            });
         }
 
         async function fetchList(source, options = {}) {
@@ -764,7 +837,8 @@ createApp({
         }
 
         async function fetchStandardCategoryList(source, standardCategory, page = 1) {
-            const matched = standardCategory?.matchedCategories || resolveStandardCategory(standardCategory);
+            const aliases = standardCategory?.aliases || [];
+            const matched = (sourceCategories[source.id] || []).filter(category => aliases.some(alias => category.name.includes(alias) || alias.includes(category.name)));
             if (!matched.length) {
                 const data = await fetchList(source, { page });
                 return { ...data, list: [] };
@@ -791,6 +865,67 @@ createApp({
             };
         }
 
+        function matchesFilterValue(value, selected) {
+            if (!selected) return true;
+            return (value || '').includes(selected);
+        }
+
+        function matchesYearFilter(video, selected) {
+            if (!selected) return true;
+            const year = String(video.vod_year || '');
+            if (selected === '更早') return year && parseInt(year) < 1980;
+            if (selected.endsWith('年代')) {
+                const prefix = selected.slice(0, 2);
+                if (prefix === '10') return /^201\d$/.test(year);
+                if (prefix === '00') return /^200\d$/.test(year);
+                if (prefix === '90') return /^199\d$/.test(year);
+                if (prefix === '80') return /^198\d$/.test(year);
+            }
+            return year === selected;
+        }
+
+        function filterVideosBySmartRules(items) {
+            let list = [...items];
+            list = list.filter(video =>
+                matchesFilterValue(`${video.type_name || ''} ${video.vod_class || ''}`, smartFilters.type) &&
+                matchesFilterValue(video.vod_area || '', smartFilters.area) &&
+                matchesFilterValue(video.vod_lang || '', smartFilters.lang) &&
+                matchesYearFilter(video, smartFilters.year)
+            );
+            if (smartFilters.sort === '最新') {
+                list.sort((a, b) => String(b.vod_time || '').localeCompare(String(a.vod_time || '')));
+            } else if (smartFilters.sort === '评分') {
+                list.sort((a, b) => (parseFloat(b.vod_score) || 0) - (parseFloat(a.vod_score) || 0));
+            } else if (smartFilters.sort === '最热') {
+                list.sort((a, b) => (parseInt(b.vod_hits) || 0) - (parseInt(a.vod_hits) || 0));
+            }
+            return list;
+        }
+
+        async function fetchAggregatedList(standardCategory = null, page = 1) {
+            const settled = await Promise.allSettled(sources.value.map(async source => {
+                const data = standardCategory?.key
+                    ? await fetchStandardCategoryList(source, standardCategory, page)
+                    : await fetchList(source, { page });
+                return (data.list || []).map(video => ({ ...video, source_id: source.id, source_name: source.name }));
+            }));
+            const list = [];
+            let maxPageCount = 1;
+            settled.forEach(result => {
+                if (result.status === 'fulfilled') {
+                    list.push(...result.value);
+                }
+            });
+            const filtered = filterVideosBySmartRules(dedupeVideos(list));
+            return {
+                code: 1,
+                page,
+                pagecount: maxPageCount,
+                total: filtered.length,
+                list: filtered
+            };
+        }
+
         async function localScanSearch(source, keyword) {
             const matched = [];
             for (let page = 1; page <= 8; page++) {
@@ -806,8 +941,8 @@ createApp({
         async function loadHome() {
             loading.value = true;
             try {
-                await fetchCategories(activeHomeSource.value);
-                const latest = await fetchList(activeHomeSource.value, { page: 1 });
+                await fetchAllCategories();
+                const latest = await fetchAggregatedList(null, 1);
                 homeSections.latest = latest.list || [];
                 videos.value = latest.list || [];
                 totalPages.value = Math.min(parseInt(latest.pagecount) || 1, 100);
@@ -825,7 +960,7 @@ createApp({
         async function loadHomeSection(key, names) {
             const standard = STANDARD_CATEGORIES.find(item => names.some(name => item.name.includes(name) || item.aliases.some(alias => alias.includes(name) || name.includes(alias))));
             try {
-                const data = standard ? await fetchStandardCategoryList(activeHomeSource.value, standard, 1) : await fetchList(activeHomeSource.value, { page: 1 });
+                const data = await fetchAggregatedList(standard || null, 1);
                 homeSections[key] = (data.list || []).slice(0, 12);
             } catch {
                 homeSections[key] = [];
@@ -939,9 +1074,7 @@ createApp({
         async function fetchVideos(page = 1) {
             loading.value = true;
             try {
-                const data = selectedCategory.value?.key
-                    ? await fetchStandardCategoryList(activeHomeSource.value, selectedCategory.value, page)
-                    : await fetchList(activeHomeSource.value, { page });
+                const data = await fetchAggregatedList(selectedCategory.value, page);
                 videos.value = data.list || [];
                 totalPages.value = Math.min(parseInt(data.pagecount) || 1, 100);
                 currentPage.value = page;
@@ -958,6 +1091,7 @@ createApp({
             selectedCategory.value = cat;
             selectedTopKey.value = cat ? 'category' : 'home';
             viewMode.value = 'category';
+            resetSmartFilters();
             await fetchVideos(1);
             pushRoute();
         }
@@ -974,7 +1108,7 @@ createApp({
         async function handleSourceSwitch() {
             localStorage.setItem('my_cms_active_source_id', activeSourceId.value);
             selectedCategory.value = null;
-            await fetchCategories(activeHomeSource.value);
+            await fetchAllCategories();
             await fetchVideos(1);
             replaceRoute();
         }
@@ -994,7 +1128,7 @@ createApp({
         function openDetailFromVideo(video, source, push = true) {
             settingsOpen.value = false;
             const sourceId = video.source_id || source?.id || activeSourceId.value;
-            detailSources.value = detailSources.value.length ? detailSources.value : [{ ...video, source_id: sourceId, source_name: source?.name || getActiveSourceName() }];
+            detailSources.value = detailSources.value.length ? detailSources.value : [{ ...video, source_id: sourceId, source_name: source?.name || findSource(sourceId)?.name || getActiveSourceName() }];
             activeVideo.value = video;
             playSources.value = parsePlayUrls(video.vod_play_url, sourceId);
             currentSourceIdx.value = 0;
@@ -1132,11 +1266,11 @@ createApp({
 
         return {
             viewMode, settingsOpen, selectedTopKey, topNav, sources, activeSourceId, activeHomeSource, searchQuery, searchInputEl,
-            lastSearchKeyword, selectedCategory, presetCategories, visibleCategories, videos, searchResults,
+            lastSearchKeyword, selectedCategory, visibleCategories, activeFilterGroups, videos, searchResults,
             favoriteVideos, currentPage, totalPages, loading, errorMsg, homeSections, heroVideo, activeVideo,
             detailSources, currentDetailSourceIdx, playSources, currentSourceIdx, currentEpisodeIdx, videoPlayer,
             playLoading, toast, hotKeywords, proxies: PROXIES, selectedProxyId,
-            handleGlobalSearch, quickSearch, goHome, openFavorites, openSettings, closeSettings, setHomeSource, saveProxy, openCategory,
+            handleGlobalSearch, quickSearch, goHome, openFavorites, openSettings, closeSettings, setSmartFilter, filterButtonClass, saveProxy, openCategory,
             openTopCategory, handleSourceSwitch, changePage, openSearchResult, openDetailFromVideo, selectDetailSource,
             playEpisode, closeDetail, isFavorited, toggleFavorite, stripHtml, getPosterUrl, handlePosterError, findSource
         };
