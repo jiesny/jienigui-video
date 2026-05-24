@@ -69,7 +69,7 @@
 <div id="app" class="min-h-screen">
     <header class="sticky top-0 z-40 nav-glass border-b border-white/10">
         <div class="app-shell py-3 sm:h-16 sm:py-0 flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4">
-            <button @click="viewMode='home'; selectedCategory=null; searchQuery=''" class="flex items-center gap-2 shrink-0 min-w-0">
+            <button @click="goHome" class="flex items-center gap-2 shrink-0 min-w-0">
                 <span class="w-9 h-9 rounded-lg bg-rose-600 flex items-center justify-center shadow-lg shadow-rose-900/30">
                     <i class="fa-solid fa-clapperboard"></i>
                 </span>
@@ -91,10 +91,10 @@
                 </button>
             </form>
 
-            <button @click="viewMode='favorites'" class="hidden sm:flex h-10 px-3 rounded-lg bg-zinc-900 border border-white/10 items-center gap-2 text-sm text-zinc-300 hover:text-white">
+            <button @click="openFavorites" class="hidden sm:flex h-10 px-3 rounded-lg bg-zinc-900 border border-white/10 items-center gap-2 text-sm text-zinc-300 hover:text-white">
                 <i class="fa-solid fa-heart text-rose-500"></i> 收藏
             </button>
-            <button @click="settingsOpen=true" class="ml-auto sm:ml-0 h-10 w-10 shrink-0 rounded-lg bg-zinc-900 border border-white/10 text-zinc-300 hover:text-white" title="站点设置">
+            <button @click="openSettings" class="ml-auto sm:ml-0 h-10 w-10 shrink-0 rounded-lg bg-zinc-900 border border-white/10 text-zinc-300 hover:text-white" title="站点设置">
                 <i class="fa-solid fa-sliders"></i>
             </button>
         </div>
@@ -126,7 +126,7 @@
                             <button v-if="heroVideo" @click="openDetailFromVideo(heroVideo, activeHomeSource)" class="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-500 text-sm font-bold">
                                 <i class="fa-solid fa-play mr-1"></i> 立即观看
                             </button>
-                            <button @click="viewMode='category'" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-sm font-bold">
+                            <button @click="openCategory(null)" class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 text-sm font-bold">
                                 <i class="fa-solid fa-table-cells-large mr-1"></i> 浏览分类
                             </button>
                         </div>
@@ -162,7 +162,7 @@
             <section class="rounded-lg border border-white/10 bg-zinc-950 p-4">
                 <div class="flex items-center justify-between mb-3">
                     <h2 class="font-bold">分类导航</h2>
-                    <button @click="viewMode='category'" class="text-xs text-rose-300 hover:text-rose-200">全部分类</button>
+                    <button @click="openCategory(null)" class="text-xs text-rose-300 hover:text-rose-200">全部分类</button>
                 </div>
                 <div class="safe-scroll-x flex gap-2 pb-1">
                     <button v-for="cat in visibleCategories" :key="cat.key" @click="openCategory(cat)"
@@ -185,7 +185,7 @@
                     <h1 class="text-2xl font-black">搜索结果</h1>
                     <p class="text-sm text-zinc-500 mt-1">已跨全部采集源检索同名影片；点进详情后再切换可用来源。关键词：<span class="text-zinc-200">{{ lastSearchKeyword }}</span></p>
                 </div>
-                <button @click="viewMode='home'" class="self-start px-3 py-2 rounded-lg bg-zinc-900 border border-white/10 text-sm text-zinc-300 hover:text-white">
+                <button @click="goHome" class="self-start px-3 py-2 rounded-lg bg-zinc-900 border border-white/10 text-sm text-zinc-300 hover:text-white">
                     <i class="fa-solid fa-arrow-left mr-1"></i> 返回首页
                 </button>
             </div>
@@ -257,7 +257,7 @@
         <section v-else-if="viewMode === 'favorites'" class="space-y-5">
             <div class="flex items-center justify-between">
                 <h1 class="text-2xl font-black">我的收藏</h1>
-                <button @click="viewMode='home'" class="px-3 py-2 rounded-lg bg-zinc-900 border border-white/10 text-sm text-zinc-300 hover:text-white">返回首页</button>
+                <button @click="goHome" class="px-3 py-2 rounded-lg bg-zinc-900 border border-white/10 text-sm text-zinc-300 hover:text-white">返回首页</button>
             </div>
             <div v-if="favoriteVideos.length === 0" class="py-24 text-center text-zinc-500">暂无收藏</div>
             <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
@@ -326,14 +326,14 @@
     </div>
 
     <div v-if="settingsOpen" class="fixed inset-0 z-50">
-        <div class="absolute inset-0 bg-black/60" @click="settingsOpen=false"></div>
+        <div class="absolute inset-0 bg-black/60" @click="closeSettings"></div>
         <aside class="absolute right-0 top-0 h-full w-full max-w-md bg-zinc-950 border-l border-white/10 shadow-2xl overflow-y-auto">
             <div class="sticky top-0 z-10 nav-glass border-b border-white/10 px-5 py-4 flex items-center justify-between">
                 <div>
                     <h2 class="font-black text-lg">站点设置</h2>
                     <p class="text-xs text-zinc-500 mt-1">采集源、代理通道、部署信息</p>
                 </div>
-                <button @click="settingsOpen=false" class="w-9 h-9 rounded-lg bg-zinc-900 border border-white/10 hover:bg-zinc-800">
+                <button @click="closeSettings" class="w-9 h-9 rounded-lg bg-zinc-900 border border-white/10 hover:bg-zinc-800">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
@@ -513,6 +513,91 @@ createApp({
             setTimeout(() => toast.show = false, 3200);
         }
 
+        function routeState(extra = {}) {
+            return {
+                viewMode: viewMode.value,
+                selectedTopKey: selectedTopKey.value,
+                selectedCategoryKey: selectedCategory.value?.key || null,
+                searchQuery: searchQuery.value,
+                lastSearchKeyword: lastSearchKeyword.value,
+                settingsOpen: settingsOpen.value,
+                detailOpen: !!activeVideo.value,
+                activeVideoName: activeVideo.value?.vod_name || null,
+                activeVideo: activeVideo.value ? { ...activeVideo.value } : null,
+                detailSources: detailSources.value.map(item => ({ ...item })),
+                currentDetailSourceIdx: currentDetailSourceIdx.value,
+                ...extra
+            };
+        }
+
+        function routeUrl(state = routeState()) {
+            const params = new URLSearchParams();
+            if (state.viewMode && state.viewMode !== 'home') params.set('view', state.viewMode);
+            if (state.selectedCategoryKey) params.set('cat', state.selectedCategoryKey);
+            if (state.lastSearchKeyword) params.set('q', state.lastSearchKeyword);
+            if (state.settingsOpen) params.set('settings', '1');
+            if (state.detailOpen && state.activeVideoName) params.set('detail', state.activeVideoName);
+            const query = params.toString();
+            return `${location.pathname}${query ? `?${query}` : ''}${location.hash || ''}`;
+        }
+
+        function pushRoute(extra = {}) {
+            const state = routeState(extra);
+            history.pushState(state, '', routeUrl(state));
+        }
+
+        function replaceRoute(extra = {}) {
+            const state = routeState(extra);
+            history.replaceState(state, '', routeUrl(state));
+        }
+
+        async function applyRouteState(state) {
+            if (!state) return;
+            if (activeVideo.value) closeDetail(false);
+            settingsOpen.value = !!state.settingsOpen;
+            viewMode.value = state.viewMode || 'home';
+            selectedTopKey.value = state.selectedTopKey || 'home';
+            searchQuery.value = state.searchQuery || state.lastSearchKeyword || '';
+            lastSearchKeyword.value = state.lastSearchKeyword || '';
+            selectedCategory.value = state.selectedCategoryKey
+                ? visibleCategories.value.find(category => category.key === state.selectedCategoryKey) || null
+                : null;
+
+            if (viewMode.value === 'category') {
+                await fetchVideos(1);
+            } else if (viewMode.value === 'home') {
+                selectedCategory.value = null;
+            }
+
+            if (state.detailOpen && state.activeVideo) {
+                detailSources.value = Array.isArray(state.detailSources) && state.detailSources.length
+                    ? state.detailSources
+                    : [state.activeVideo];
+                currentDetailSourceIdx.value = state.currentDetailSourceIdx || 0;
+                openDetailFromVideo(state.activeVideo, findSource(state.activeVideo.source_id), false);
+            }
+        }
+
+        function stateFromUrl() {
+            const params = new URLSearchParams(location.search);
+            const view = params.get('view') || 'home';
+            const catKey = params.get('cat');
+            const q = params.get('q') || '';
+            return {
+                viewMode: view,
+                selectedTopKey: catKey ? 'category' : view === 'home' ? 'home' : view,
+                selectedCategoryKey: catKey,
+                searchQuery: q,
+                lastSearchKeyword: q,
+                settingsOpen: params.get('settings') === '1',
+                detailOpen: false,
+                activeVideoName: params.get('detail'),
+                activeVideo: null,
+                detailSources: [],
+                currentDetailSourceIdx: 0
+            };
+        }
+
         function findSource(id) {
             return sources.value.find(source => source.id === id);
         }
@@ -672,6 +757,7 @@ createApp({
             localStorage.setItem('my_cms_active_source_id', sourceId);
             selectedCategory.value = null;
             await loadHome();
+            replaceRoute();
         }
 
         function saveProxy() {
@@ -710,6 +796,7 @@ createApp({
             searchResults.value = groupSearchResults(results);
             if (!searchResults.value.length) errorMsg.value = '没有搜索到相关内容，请换一个关键词。';
             loading.value = false;
+            pushRoute();
         }
 
         function groupSearchResults(items) {
@@ -734,6 +821,39 @@ createApp({
             handleGlobalSearch();
         }
 
+        function goHome() {
+            settingsOpen.value = false;
+            if (activeVideo.value) closeDetail(false);
+            viewMode.value = 'home';
+            selectedTopKey.value = 'home';
+            selectedCategory.value = null;
+            searchQuery.value = '';
+            lastSearchKeyword.value = '';
+            pushRoute();
+        }
+
+        function openFavorites() {
+            settingsOpen.value = false;
+            if (activeVideo.value) closeDetail(false);
+            viewMode.value = 'favorites';
+            selectedTopKey.value = 'favorites';
+            pushRoute();
+        }
+
+        function openSettings() {
+            settingsOpen.value = true;
+            pushRoute({ settingsOpen: true });
+        }
+
+        function closeSettings(push = true) {
+            if (push && history.state?.settingsOpen) {
+                history.back();
+                return;
+            }
+            settingsOpen.value = false;
+            if (push) replaceRoute({ settingsOpen: false });
+        }
+
         async function fetchVideos(page = 1) {
             loading.value = true;
             try {
@@ -751,16 +871,19 @@ createApp({
         }
 
         async function openCategory(cat) {
+            if (activeVideo.value) closeDetail(false);
+            settingsOpen.value = false;
             selectedCategory.value = cat;
             selectedTopKey.value = cat ? 'category' : 'home';
             viewMode.value = 'category';
             await fetchVideos(1);
+            pushRoute();
         }
 
         async function openTopCategory(item) {
             selectedTopKey.value = item.key;
             if (item.key === 'home') {
-                viewMode.value = 'home';
+                goHome();
                 return;
             }
             await openCategory(item);
@@ -771,12 +894,13 @@ createApp({
             selectedCategory.value = null;
             await fetchCategories(activeHomeSource.value);
             await fetchVideos(1);
+            replaceRoute();
         }
 
         function changePage(page) {
             if (page < 1 || page > totalPages.value) return;
             fetchVideos(page);
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            document.querySelector('#app')?.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
         function openSearchResult(item) {
@@ -785,7 +909,8 @@ createApp({
             openDetailFromVideo(item.sources[0], findSource(item.sources[0].source_id));
         }
 
-        function openDetailFromVideo(video, source) {
+        function openDetailFromVideo(video, source, push = true) {
+            settingsOpen.value = false;
             detailSources.value = detailSources.value.length ? detailSources.value : [{ ...video, source_id: source?.id || activeSourceId.value, source_name: source?.name || getActiveSourceName() }];
             activeVideo.value = video;
             playSources.value = parsePlayUrls(video.vod_play_url);
@@ -795,6 +920,7 @@ createApp({
                 const first = playSources.value?.[0]?.episodes?.[0];
                 if (first) initVideoPlayer(first.url);
             }, 150);
+            if (push) pushRoute({ detailOpen: true, activeVideoName: video.vod_name });
         }
 
         function selectDetailSource(index) {
@@ -853,7 +979,7 @@ createApp({
             initVideoPlayer(url);
         }
 
-        function closeDetail() {
+        function closeDetail(push = true) {
             if (hls) {
                 hls.destroy();
                 hls = null;
@@ -866,6 +992,11 @@ createApp({
             activeVideo.value = null;
             detailSources.value = [];
             playSources.value = [];
+            if (push && history.state?.detailOpen) {
+                history.back();
+            } else if (push) {
+                replaceRoute({ detailOpen: false, activeVideoName: null, activeVideo: null, detailSources: [] });
+            }
         }
 
         function isFavorited(vodId) {
@@ -899,6 +1030,12 @@ createApp({
                 try { favoriteVideos.value = JSON.parse(savedFavs); } catch { favoriteVideos.value = []; }
             }
             await loadHome();
+            const initialState = stateFromUrl();
+            await applyRouteState(initialState);
+            replaceRoute(initialState);
+            window.addEventListener('popstate', event => {
+                applyRouteState(event.state || stateFromUrl());
+            });
         });
 
         return {
@@ -907,7 +1044,7 @@ createApp({
             favoriteVideos, currentPage, totalPages, loading, errorMsg, homeSections, heroVideo, activeVideo,
             detailSources, currentDetailSourceIdx, playSources, currentSourceIdx, currentEpisodeIdx, videoPlayer,
             playLoading, toast, hotKeywords, proxies: PROXIES, selectedProxyId,
-            handleGlobalSearch, quickSearch, setHomeSource, saveProxy, openCategory,
+            handleGlobalSearch, quickSearch, goHome, openFavorites, openSettings, closeSettings, setHomeSource, saveProxy, openCategory,
             openTopCategory, handleSourceSwitch, changePage, openSearchResult, openDetailFromVideo, selectDetailSource,
             playEpisode, closeDetail, isFavorited, toggleFavorite, stripHtml, getPosterUrl, handlePosterError, findSource
         };
