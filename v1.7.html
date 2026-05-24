@@ -392,12 +392,13 @@ const PROXIES = [
 const DEFAULT_SOURCES = [
     { id: 'source_wsyzy', name: '非凡无水印源', url: 'https://api.wsyzy.net/api.php/provide/vod/' },
     { id: 'source_ffzy', name: '非凡资源', url: 'https://api.ffzyapi.com/api.php/provide/vod/' },
+    { id: 'source_dytt', name: '电影天堂资源', url: 'https://caiji.dyttzyapi.com/api.php/provide/vod/at/xml/', format: 'xml' },
     { id: 'source_xigua', name: '西瓜资源', url: 'https://xgzy.tv/api.php/provide/vod/' },
     { id: 'source_yjzy', name: '影剧资源', url: 'https://yjzy.tv/api.php/provide/vod/' },
     { id: 'source_mtzy', name: '茅台资源', url: 'https://caiji.maotaizy.cc/api.php/provide/vod/' },
     { id: 'source_wujin', name: '无尽资源', url: 'https://api.wujinapi.me/api.php/provide/vod/' }
 ];
-const SOURCE_SCHEMA_VERSION = '2026-05-25-ffzy';
+const SOURCE_SCHEMA_VERSION = '2026-05-25-dytt';
 
 const STANDARD_CATEGORIES = [
     { key: 'movie', name: '电影', aliases: ['电影', '电影片', '动作片', '喜剧片', '爱情片', '科幻片', '恐怖片', '剧情片', '战争片', '惊悚片', '犯罪片', '悬疑片', '冒险片', '奇幻片', '4K电影', 'Netflix电影', '邵氏电影'] },
@@ -417,7 +418,8 @@ const URL_REPLACEMENTS = [
     ['vip.ffzy-video.com', 'vod.feifei-video.com'],
     ['vip.ffzy-online4.com', 'vod.feifei-online.com'],
     ['svipsvip.ffzyread1.com', 'vod.feifei-kan.com'],
-    ['svipsvip.ffzy-online5.com', 'vip.ffzy-plays.com']
+    ['svipsvip.ffzy-online5.com', 'vip.ffzy-plays.com'],
+    ['vip.dytt-watch.com', 'vip.dytt-broadcast.com']
 ];
 
 const VideoCard = {
@@ -640,6 +642,51 @@ createApp({
             };
         }
 
+        function parseXmlData(xmlText, source) {
+            const doc = new DOMParser().parseFromString(xmlText, 'application/xml');
+            if (doc.querySelector('parsererror')) throw new Error('XML parse failed');
+            const listNode = doc.querySelector('list');
+            const videos = Array.from(doc.querySelectorAll('video')).map(video => {
+                const text = selector => video.querySelector(selector)?.textContent?.trim() || '';
+                const playGroups = Array.from(video.querySelectorAll('dl dd'))
+                    .filter(item => (item.getAttribute('flag') || '').toLowerCase().includes('m3u8'))
+                    .map(item => item.textContent.trim())
+                    .filter(Boolean);
+                return normalizeVideoItem({
+                    vod_id: text('id'),
+                    vod_name: text('name'),
+                    type_id: text('tid'),
+                    type_name: text('type'),
+                    vod_pic: text('pic'),
+                    vod_sub: text('subname'),
+                    vod_lang: text('lang'),
+                    vod_area: text('area'),
+                    vod_year: text('year'),
+                    vod_remarks: text('note'),
+                    vod_actor: text('actor'),
+                    vod_director: text('director'),
+                    vod_content: text('des'),
+                    vod_time: text('last'),
+                    vod_play_url: playGroups.join('$$$')
+                }, source);
+            });
+            const classMap = new Map();
+            videos.forEach(video => {
+                if (video.type_id && video.type_name && !classMap.has(video.type_id)) {
+                    classMap.set(video.type_id, { type_id: video.type_id, type_name: video.type_name });
+                }
+            });
+            return {
+                code: 1,
+                page: parseInt(listNode?.getAttribute('page')) || 1,
+                pagecount: parseInt(listNode?.getAttribute('pagecount')) || 1,
+                limit: listNode?.getAttribute('pagesize') || '20',
+                total: parseInt(listNode?.getAttribute('recordcount')) || videos.length,
+                class: Array.from(classMap.values()),
+                list: videos
+            };
+        }
+
         function getPosterUrl(url) {
             return normalizeResourceUrls(url) || FALLBACK_POSTER;
         }
@@ -668,7 +715,7 @@ createApp({
                         err.sourceUnsupported = true;
                         throw err;
                     }
-                    const data = JSON.parse(text);
+                    const data = text.trim().startsWith('<') ? parseXmlData(text) : JSON.parse(text);
                     localStorage.setItem('my_cms_proxy', proxy.id);
                     return data;
                 } catch (error) {
