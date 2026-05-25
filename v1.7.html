@@ -601,14 +601,15 @@ const PROXIES = [
 ];
 
 const DEFAULT_SOURCES = [
-    { id: 'source_ffzy', name: '非凡资源', url: 'https://api.ffzyapi.com/api.php/provide/vod/' },
     { id: 'source_dytt', name: '电影天堂资源', url: 'https://caiji.dyttzyapi.com/api.php/provide/vod/at/xml/', format: 'xml' },
     { id: 'source_yzzy', name: '优质资源库', url: 'https://api.yzzy-api.com/api.php/provide/vod/at/xml/', format: 'xml' },
     { id: 'source_ryzy', name: '如意资源', url: 'https://cj.rycjapi.com/api.php/provide/vod/at/xml/', format: 'xml' },
-    { id: 'source_yaya', name: '鸭鸭资源', url: 'https://cj.yayazy.net/api.php/provide/vod/' },
-    { id: 'source_xigua', name: '西瓜资源', url: 'https://xgzy.tv/api.php/provide/vod/' }
+    { id: 'source_xigua', name: '西瓜资源', url: 'https://xgzy.tv/api.php/provide/vod/' },
+    { id: 'source_ffzy', name: '非凡资源', url: 'https://api.ffzyapi.com/api.php/provide/vod/' },
+    { id: 'source_yaya', name: '鸭鸭资源', url: 'https://cj.yayazy.net/api.php/provide/vod/' }
 ];
 const SOURCE_SCHEMA_VERSION = '2026-05-25-yaya';
+const LOW_PRIORITY_SOURCE_IDS = ['source_ffzy', 'source_yaya'];
 const THEMES = [
     { id: 'midnight', name: '暗夜玫瑰', desc: '默认深色观影界面', swatch: 'linear-gradient(135deg, #09090b, #e11d48)' },
     { id: 'ocean', name: '深海蓝', desc: '冷色低亮度主题', swatch: 'linear-gradient(135deg, #06131f, #06b6d4)' },
@@ -925,6 +926,17 @@ createApp({
             return sources.value.find(source => source.id === id);
         }
 
+        function sourcePriority(sourceId) {
+            const lowIndex = LOW_PRIORITY_SOURCE_IDS.indexOf(sourceId);
+            if (lowIndex >= 0) return 100 + lowIndex;
+            const index = sources.value.findIndex(source => source.id === sourceId);
+            return index >= 0 ? index : 50;
+        }
+
+        function sortBySourcePriority(items) {
+            return [...items].sort((a, b) => sourcePriority(a.source_id) - sourcePriority(b.source_id));
+        }
+
         function sourceStatusClass(status = 'idle') {
             if (status === 'ok') return 'text-emerald-300';
             if (status === 'fail') return 'text-rose-300';
@@ -1163,9 +1175,14 @@ createApp({
                 const group = map.get(key);
                 if (!group.sources.some(source => source.source_id === item.source_id)) {
                     group.sources.push(item);
+                    group.sources = sortBySourcePriority(group.sources);
                 }
                 group.sourceNames = group.sources.map(source => source.source_name).join(' / ');
                 if (!group.vod_pic && item.vod_pic) group.vod_pic = item.vod_pic;
+                Object.assign(group, group.sources[0]);
+                group.key = key;
+                group.sources = sortBySourcePriority(group.sources);
+                group.sourceNames = group.sources.map(source => source.source_name).join(' / ');
             });
             return Array.from(map.values());
         }
@@ -1351,7 +1368,7 @@ createApp({
             if (hasPlayableVideo(currentVideo) && !results.some(item => item.source_id === currentVideo.source_id)) {
                 results.unshift(currentVideo);
             }
-            return results.sort((a, b) => Number(b.source_id === currentSourceId) - Number(a.source_id === currentSourceId));
+            return sortBySourcePriority(results);
         }
 
         async function loadHome() {
@@ -1557,13 +1574,13 @@ createApp({
         }
 
         function openSearchResult(item) {
-            detailSources.value = item.sources;
+            detailSources.value = sortBySourcePriority(item.sources);
             currentDetailSourceIdx.value = 0;
-            openDetailFromVideo(item.sources[0], findSource(item.sources[0].source_id));
+            openDetailFromVideo(detailSources.value[0], findSource(detailSources.value[0].source_id));
         }
 
         async function openAggregatedDetail(video) {
-            detailSources.value = Array.isArray(video.sources) ? video.sources.filter(hasPlayableVideo) : [];
+            detailSources.value = Array.isArray(video.sources) ? sortBySourcePriority(video.sources.filter(hasPlayableVideo)) : [];
             currentDetailSourceIdx.value = 0;
             await openDetailFromVideo(video, findSource(video.source_id));
         }
@@ -1573,7 +1590,7 @@ createApp({
             const sourceId = video.source_id || source?.id || activeSourceId.value;
             const fallbackVideo = { ...video, source_id: sourceId, source_name: video.source_name || source?.name || findSource(sourceId)?.name || getActiveSourceName() };
             const groupedSources = Array.isArray(video.sources) && video.sources.length
-                ? video.sources.filter(hasPlayableVideo)
+                ? sortBySourcePriority(video.sources.filter(hasPlayableVideo))
                 : [];
             activeVideo.value = fallbackVideo;
             if (groupedSources.length) {
@@ -1586,7 +1603,7 @@ createApp({
                 detailSources.value = hasPlayableVideo(fallbackVideo) ? [fallbackVideo] : [];
                 const foundSources = await findPlayableSourcesForVideo(fallbackVideo);
                 if (foundSources.length) {
-                    detailSources.value = foundSources;
+                    detailSources.value = sortBySourcePriority(foundSources);
                     currentDetailSourceIdx.value = Math.max(0, foundSources.findIndex(item => item.source_id === sourceId));
                     const selected = detailSources.value[currentDetailSourceIdx.value] || detailSources.value[0];
                     activeVideo.value = selected;
@@ -1709,10 +1726,11 @@ createApp({
             localStorage.removeItem('my_cms_multi_sources');
             localStorage.removeItem('my_cms_source_schema_version');
             const savedSource = localStorage.getItem('my_cms_active_source_id');
-            if (savedSource && sources.value.some(source => source.id === savedSource)) {
+            const preferredSourceId = sources.value[0]?.id || 'source_dytt';
+            if (savedSource && sources.value.some(source => source.id === savedSource) && !LOW_PRIORITY_SOURCE_IDS.includes(savedSource)) {
                 activeSourceId.value = savedSource;
             } else {
-                activeSourceId.value = 'source_ffzy';
+                activeSourceId.value = preferredSourceId;
                 localStorage.setItem('my_cms_active_source_id', activeSourceId.value);
             }
             const savedFavs = localStorage.getItem('my_cms_favorites');
