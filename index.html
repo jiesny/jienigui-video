@@ -238,8 +238,9 @@
         }
         .safe-scroll-x { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; max-width: 100%; scrollbar-width: none; }
         .safe-scroll-x::-webkit-scrollbar { display: none; }
-        .detail-shell { width: min(1680px, calc(100vw - 64px)); margin-left: auto; margin-right: auto; min-height: 100dvh; padding: 1rem 0; display: flex; align-items: center; }
-        .detail-panel { width: 100%; max-height: calc(100dvh - 32px); border-radius: .5rem; border: 1px solid var(--border-color); background: var(--panel-bg); box-shadow: 0 25px 50px -12px rgba(0,0,0,.75); overflow: hidden; }
+        .detail-overlay { overscroll-behavior: contain; }
+        .detail-shell { width: min(1680px, calc(100vw - 64px)); max-width: 100%; margin-left: auto; margin-right: auto; min-height: 100dvh; padding: 1rem 0; display: flex; align-items: center; }
+        .detail-panel { width: 100%; max-width: 100%; max-height: calc(100dvh - 32px); border-radius: .5rem; border: 1px solid var(--border-color); background: var(--panel-bg); box-shadow: 0 25px 50px -12px rgba(0,0,0,.75); overflow: hidden; }
         .detail-grid { display: grid !important; min-height: min(76dvh, 820px); }
         .player-frame { background: #000; position: relative; min-height: 360px; height: min(76dvh, 820px); }
         .detail-side { padding: 1.25rem; max-height: 82vh; overflow-y: auto; }
@@ -257,14 +258,16 @@
             .mobile-settings { order: 2 !important; margin-left: 0; }
         }
         @media (max-width: 1023px) and (orientation: portrait) {
-            .detail-shell { width: 100vw; min-height: 100dvh; padding: 0; display: block; }
-            .detail-panel { min-height: 100dvh; max-height: none; border-radius: 0; border-left: 0; border-right: 0; overflow: visible; }
+            .detail-overlay { overflow-x: hidden; }
+            .detail-shell { width: 100%; min-height: 100dvh; padding: 0; display: block; overflow-x: hidden; }
+            .detail-panel { min-height: 100dvh; max-height: none; border-radius: 0; border-left: 0; border-right: 0; overflow: hidden; }
             .detail-grid { display: block !important; }
             .player-frame {
                 position: sticky;
                 top: 0;
                 z-index: 5;
-                width: 100vw;
+                width: 100%;
+                max-width: 100%;
                 min-height: 0;
                 height: min(56.25vw, 48dvh);
                 aspect-ratio: auto;
@@ -272,6 +275,8 @@
             .detail-side {
                 max-height: none;
                 overflow: visible;
+                width: 100%;
+                max-width: 100%;
                 padding: 1rem;
                 padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
             }
@@ -507,7 +512,7 @@
         </section>
     </main>
 
-    <div v-if="activeVideo" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm overflow-y-auto">
+    <div v-if="activeVideo" class="detail-overlay fixed inset-0 z-50 bg-black/90 backdrop-blur-sm overflow-y-auto">
         <div class="detail-shell">
             <div class="detail-panel">
                 <div class="relative">
@@ -921,6 +926,30 @@ createApp({
             triggerToast(`已切换为${currentThemeName.value}`, 'success');
         }
 
+        function getAppScrollTop() {
+            return Math.max(0, Math.round(document.querySelector('#app')?.scrollTop || 0));
+        }
+
+        function persistCurrentScroll() {
+            const state = {
+                ...(history.state || routeState()),
+                scrollTop: getAppScrollTop()
+            };
+            history.replaceState(state, '', routeUrl(state));
+            return state.scrollTop;
+        }
+
+        function restoreAppScroll(scrollTop = 0) {
+            const target = Math.max(0, Math.round(scrollTop || 0));
+            const apply = () => {
+                const app = document.querySelector('#app');
+                if (app) app.scrollTo({ top: target, behavior: 'auto' });
+            };
+            nextTick(() => requestAnimationFrame(apply));
+            setTimeout(apply, 80);
+            setTimeout(apply, 220);
+        }
+
         function routeState(extra = {}) {
             return {
                 viewMode: viewMode.value,
@@ -934,6 +963,7 @@ createApp({
                 activeVideo: activeVideo.value ? { ...activeVideo.value } : null,
                 detailSources: detailSources.value.map(item => ({ ...item })),
                 currentDetailSourceIdx: currentDetailSourceIdx.value,
+                scrollTop: getAppScrollTop(),
                 ...extra
             };
         }
@@ -962,6 +992,7 @@ createApp({
         async function applyRouteState(state) {
             if (!state) return;
             if (activeVideo.value) closeDetail(false);
+            const previousCategoryKey = selectedCategory.value?.key || null;
             settingsOpen.value = !!state.settingsOpen;
             viewMode.value = state.viewMode || 'home';
             selectedTopKey.value = state.selectedTopKey || 'home';
@@ -972,7 +1003,8 @@ createApp({
                 : null;
 
             if (viewMode.value === 'category') {
-                await fetchVideos(1);
+                const categoryChanged = previousCategoryKey !== (selectedCategory.value?.key || null);
+                if (categoryChanged || !videos.value.length) await fetchVideos(currentPage.value || 1);
             } else if (viewMode.value === 'home') {
                 selectedCategory.value = null;
             }
@@ -985,6 +1017,7 @@ createApp({
                 openDetailFromVideo(state.activeVideo, findSource(state.activeVideo.source_id), false);
             }
             if (settingsOpen.value) checkAllSources();
+            if (!state.detailOpen) restoreAppScroll(state.scrollTop);
         }
 
         function stateFromUrl() {
@@ -1003,7 +1036,8 @@ createApp({
                 activeVideoName: params.get('detail'),
                 activeVideo: null,
                 detailSources: [],
-                currentDetailSourceIdx: 0
+                currentDetailSourceIdx: 0,
+                scrollTop: 0
             };
         }
 
@@ -1758,6 +1792,7 @@ createApp({
         }
 
         async function openDetailFromVideo(video, source, push = true) {
+            const returnScrollTop = push ? persistCurrentScroll() : history.state?.scrollTop || getAppScrollTop();
             settingsOpen.value = false;
             const sourceId = video.source_id || source?.id || activeSourceId.value;
             const fallbackVideo = { ...video, source_id: sourceId, source_name: video.source_name || source?.name || findSource(sourceId)?.name || getActiveSourceName() };
@@ -1789,7 +1824,7 @@ createApp({
                 const first = playSources.value?.[0]?.episodes?.[0];
                 if (first) initVideoPlayer(first.url);
             }, 150);
-            if (push) pushRoute({ detailOpen: true, activeVideoName: video.vod_name });
+            if (push) pushRoute({ detailOpen: true, activeVideoName: video.vod_name, scrollTop: returnScrollTop });
         }
 
         function selectDetailSource(index) {
@@ -1868,7 +1903,7 @@ createApp({
             if (push && history.state?.detailOpen) {
                 history.back();
             } else if (push) {
-                replaceRoute({ detailOpen: false, activeVideoName: null, activeVideo: null, detailSources: [] });
+                replaceRoute({ detailOpen: false, activeVideoName: null, activeVideo: null, detailSources: [], scrollTop: history.state?.scrollTop || getAppScrollTop() });
             }
         }
 
