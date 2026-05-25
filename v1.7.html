@@ -297,11 +297,27 @@
             </nav>
 
             <form @submit.prevent="handleGlobalSearch" class="mobile-search order-3 sm:order-none w-full sm:w-auto sm:ml-auto flex-1 sm:max-w-xl relative min-w-0">
-                <input ref="searchInputEl" v-model="searchQuery" type="text" placeholder="搜索电影、剧集、动漫、演员..."
+                <input ref="searchInputEl" v-model="searchQuery" @focus="showSearchHistory = true" @click="showSearchHistory = true" @input="showSearchHistory = true" @blur="hideSearchHistorySoon" type="text" placeholder="搜索电影、剧集、动漫、演员..."
                     class="w-full h-10 bg-zinc-900 border border-white/10 rounded-lg pl-4 pr-12 text-sm outline-none focus:border-rose-500 placeholder-zinc-500">
                 <button class="absolute right-1 top-1 w-8 h-8 rounded-lg bg-rose-600 hover:bg-rose-500 transition" title="搜索">
                     <i class="fa-solid fa-magnifying-glass text-sm"></i>
                 </button>
+                <div v-if="showSearchHistory && searchHistory.length" class="absolute left-0 right-0 top-12 z-50 rounded-lg border border-white/10 bg-zinc-950 shadow-2xl overflow-hidden">
+                    <div class="flex items-center justify-between px-3 py-2 border-b border-white/10">
+                        <span class="text-xs font-bold text-zinc-400">搜索记录</span>
+                        <button type="button" @mousedown.stop.prevent="clearSearchHistory" class="text-[11px] text-zinc-500 hover:text-rose-300">清空</button>
+                    </div>
+                    <div class="max-h-64 overflow-y-auto">
+                        <div v-for="word in searchHistory" :key="word" role="button" tabindex="0" @mousedown.prevent="useSearchHistory(word)"
+                            class="w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-white/10">
+                            <i class="fa-solid fa-clock-rotate-left text-xs text-zinc-500"></i>
+                            <span class="min-w-0 flex-1 truncate text-sm text-zinc-300">{{ word }}</span>
+                            <button type="button" @mousedown.stop.prevent="removeSearchHistory(word)" class="shrink-0 h-7 w-7 rounded-lg inline-flex items-center justify-center text-zinc-500 hover:text-rose-300 hover:bg-white/10" title="删除搜索记录">
+                                <i class="fa-solid fa-xmark text-xs"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </form>
 
             <button @click="openFavorites" class="hidden sm:flex h-10 px-3 rounded-lg bg-zinc-900 border border-white/10 items-center gap-2 text-sm text-zinc-300 hover:text-white">
@@ -651,6 +667,8 @@ const DEFAULT_SOURCES = [
 ];
 const SOURCE_SCHEMA_VERSION = '2026-05-25-yaya';
 const LOW_PRIORITY_SOURCE_IDS = ['source_ffzy', 'source_yaya'];
+const SEARCH_HISTORY_KEY = 'jng_search_history';
+const MAX_SEARCH_HISTORY = 12;
 const FRIEND_LINKS = [
     {
         url: 'https://jiesny.github.io/jienigui-video/',
@@ -828,6 +846,8 @@ createApp({
         const searchQuery = ref('');
         const searchInputEl = ref(null);
         const lastSearchKeyword = ref('');
+        const searchHistory = ref([]);
+        const showSearchHistory = ref(false);
         const searchCompletedCount = ref(0);
         const searchTotalCount = ref(0);
         const searchPendingSources = ref([]);
@@ -1485,6 +1505,46 @@ createApp({
             triggerToast('代理通道已更新', 'success');
         }
 
+        function loadSearchHistory() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(SEARCH_HISTORY_KEY) || '[]');
+                searchHistory.value = Array.isArray(saved) ? saved.filter(Boolean).slice(0, MAX_SEARCH_HISTORY) : [];
+            } catch {
+                searchHistory.value = [];
+            }
+        }
+
+        function saveSearchHistory() {
+            localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(searchHistory.value.slice(0, MAX_SEARCH_HISTORY)));
+        }
+
+        function addSearchHistory(keyword) {
+            const word = (keyword || '').trim();
+            if (!word) return;
+            searchHistory.value = [word, ...searchHistory.value.filter(item => item !== word)].slice(0, MAX_SEARCH_HISTORY);
+            saveSearchHistory();
+        }
+
+        function removeSearchHistory(word) {
+            searchHistory.value = searchHistory.value.filter(item => item !== word);
+            saveSearchHistory();
+        }
+
+        function clearSearchHistory() {
+            searchHistory.value = [];
+            saveSearchHistory();
+        }
+
+        function hideSearchHistorySoon() {
+            setTimeout(() => showSearchHistory.value = false, 140);
+        }
+
+        function useSearchHistory(word) {
+            searchQuery.value = word;
+            showSearchHistory.value = false;
+            handleGlobalSearch();
+        }
+
         async function checkSourceHealth(source) {
             sourceHealth[source.id] = { status: 'checking', message: '正在请求采集通道...' };
             try {
@@ -1520,6 +1580,8 @@ createApp({
             const searchTimeoutMs = 5000;
             searchQuery.value = keyword;
             lastSearchKeyword.value = keyword;
+            addSearchHistory(keyword);
+            showSearchHistory.value = false;
             viewMode.value = 'search';
             loading.value = true;
             errorMsg.value = '';
@@ -1808,6 +1870,7 @@ createApp({
 
         onMounted(async () => {
             applyTheme(currentTheme.value);
+            loadSearchHistory();
             sources.value = [...DEFAULT_SOURCES];
             localStorage.removeItem('my_cms_multi_sources');
             localStorage.removeItem('my_cms_source_schema_version');
@@ -1834,13 +1897,14 @@ createApp({
 
         return {
             viewMode, settingsOpen, selectedTopKey, topNav, sources, activeSourceId, activeHomeSource, searchQuery, searchInputEl,
-            lastSearchKeyword, searchCompletedCount, searchTotalCount, searchPendingSources, searchProgressText,
+            lastSearchKeyword, searchHistory, showSearchHistory, searchCompletedCount, searchTotalCount, searchPendingSources, searchProgressText,
             selectedCategory, visibleCategories, activeFilterGroups, videos, searchResults,
             favoriteVideos, currentPage, totalPages, loading, errorMsg, homeSections, heroVideo, activeVideo,
             detailSources, currentDetailSourceIdx, playSources, currentSourceIdx, currentEpisodeIdx, videoPlayer,
             playLoading, toast, hotKeywords, proxies: PROXIES, selectedProxyId, themes: THEMES, friendLinks: FRIEND_LINKS, currentTheme, currentThemeName,
             sourceHealth, sourceCheckingAll, sourceStatusSummary,
             handleGlobalSearch, quickSearch, goHome, openFavorites, openSettings, closeSettings, setSmartFilter, filterButtonClass, saveProxy, setTheme,
+            useSearchHistory, removeSearchHistory, clearSearchHistory, hideSearchHistorySoon,
             checkAllSources, sourceStatusClass, sourceStatusIcon, sourceStatusText, openCategory, openCategoryByKey,
             openTopCategory, handleSourceSwitch, changePage, openSearchResult, openDetailFromVideo, openAggregatedDetail, selectDetailSource,
             playEpisode, closeDetail, isFavorited, toggleFavorite, stripHtml, getPosterUrl, handlePosterError, findSource
