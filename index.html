@@ -191,6 +191,19 @@
         body[data-theme="glass"] .hover\:bg-white\/15:hover { background-color: rgba(37, 99, 235, .12) !important; }
         body[data-theme="light"] .bg-rose-600,
         body[data-theme="glass"] .bg-rose-600 { color: white !important; }
+        body[data-theme="light"] .node-tip {
+            background-color: #eaf2ff !important;
+            border-color: rgba(37, 99, 235, .24) !important;
+            color: #1e3a8a !important;
+        }
+        body[data-theme="glass"] .node-tip {
+            background-color: rgba(255, 255, 255, .42) !important;
+            border-color: rgba(14, 165, 233, .28) !important;
+            color: #164e63 !important;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .56);
+            backdrop-filter: blur(18px) saturate(1.25);
+            -webkit-backdrop-filter: blur(18px) saturate(1.25);
+        }
         body .bg-zinc-950 { background-color: var(--panel-bg) !important; }
         body .bg-zinc-900 { background-color: var(--soft-bg) !important; }
         body .border-white\/10 { border-color: var(--border-color) !important; }
@@ -337,8 +350,8 @@
                             <h2 class="font-bold">聚合源</h2>
                             <span class="text-xs text-zinc-500">已接入 {{ sources.length }} 个</span>
                         </div>
-                        <div class="mb-3 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-100">
-                            友情提示：建议使用新加坡节点进行科学上网，播放和搜索稳定性会更好。
+                        <div class="node-tip mb-3 rounded-lg border border-amber-500/25 bg-amber-500/10 px-3 py-2 text-xs leading-relaxed text-amber-100">
+                            友情提示：建议优先使用新加坡或香港节点，播放和搜索稳定性会更好。
                         </div>
                         <div class="grid grid-cols-2 gap-2">
                             <button v-for="source in sources" :key="source.id"
