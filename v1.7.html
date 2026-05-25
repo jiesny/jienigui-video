@@ -605,6 +605,28 @@
                         </button>
                     </div>
                 </section>
+
+                <section class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold">友链入口</h3>
+                        <span class="text-xs text-zinc-500">按网络环境选择</span>
+                    </div>
+                    <div class="space-y-2">
+                        <a v-for="link in friendLinks" :key="link.url" :href="link.url" target="_blank" rel="noopener noreferrer"
+                            class="block rounded-lg border border-white/10 bg-zinc-900 p-3 hover:border-rose-500 transition">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <div class="font-bold text-sm">{{ link.name }}</div>
+                                    <div class="mt-1 text-[11px] text-zinc-500 break-all">{{ link.url }}</div>
+                                </div>
+                                <span :class="['shrink-0 rounded px-2 py-1 text-[11px] font-bold', link.science ? 'bg-emerald-500/15 text-emerald-300' : 'bg-zinc-500/15 text-zinc-300']">
+                                    科学上网 {{ link.science ? 'Y' : 'N' }}
+                                </span>
+                            </div>
+                            <div class="mt-2 text-xs text-zinc-500 leading-relaxed">{{ link.note }}</div>
+                        </a>
+                    </div>
+                </section>
             </div>
         </aside>
     </div>
@@ -629,6 +651,20 @@ const DEFAULT_SOURCES = [
 ];
 const SOURCE_SCHEMA_VERSION = '2026-05-25-yaya';
 const LOW_PRIORITY_SOURCE_IDS = ['source_ffzy', 'source_yaya'];
+const FRIEND_LINKS = [
+    {
+        url: 'https://jiesny.github.io/jienigui-video/',
+        name: '杰尼龟影视（GitHub）',
+        science: true,
+        note: '适合可科学上网环境；非凡资源约 6 分钟有广告，鸭鸭资源可能有小广告浮窗。'
+    },
+    {
+        url: 'https://jienigui-video.pages.dev/',
+        name: '杰尼龟影视（Cloudflare）',
+        science: false,
+        note: '适合国内直连环境；电影天堂、非凡资源直连稳定性可能波动。'
+    }
+];
 const THEMES = [
     { id: 'midnight', name: '暗夜玫瑰', desc: '默认深色观影界面', swatch: 'linear-gradient(135deg, #09090b, #e11d48)' },
     { id: 'ocean', name: '深海蓝', desc: '冷色低亮度主题', swatch: 'linear-gradient(135deg, #06131f, #06b6d4)' },
@@ -1802,7 +1838,7 @@ createApp({
             selectedCategory, visibleCategories, activeFilterGroups, videos, searchResults,
             favoriteVideos, currentPage, totalPages, loading, errorMsg, homeSections, heroVideo, activeVideo,
             detailSources, currentDetailSourceIdx, playSources, currentSourceIdx, currentEpisodeIdx, videoPlayer,
-            playLoading, toast, hotKeywords, proxies: PROXIES, selectedProxyId, themes: THEMES, currentTheme, currentThemeName,
+            playLoading, toast, hotKeywords, proxies: PROXIES, selectedProxyId, themes: THEMES, friendLinks: FRIEND_LINKS, currentTheme, currentThemeName,
             sourceHealth, sourceCheckingAll, sourceStatusSummary,
             handleGlobalSearch, quickSearch, goHome, openFavorites, openSettings, closeSettings, setSmartFilter, filterButtonClass, saveProxy, setTheme,
             checkAllSources, sourceStatusClass, sourceStatusIcon, sourceStatusText, openCategory, openCategoryByKey,
