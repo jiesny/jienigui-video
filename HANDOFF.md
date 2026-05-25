@@ -2,7 +2,7 @@
 
 ## 1. 项目概览
 
-这是一个纯前端影视聚合站，核心文件是 `index.html`。页面部署在 GitHub Pages，不依赖自建后端。
+杰尼龟影视是一个纯前端影视聚合站，核心文件是 `index.html`，无自建后端。页面通过公共 CORS 代理访问采集接口，适合部署在 GitHub Pages / Cloudflare Pages 这类静态托管环境。
 
 本地目录：
 
@@ -10,10 +10,11 @@
 D:\项目资料\杰尼龟影视
 ```
 
-线上地址：
+线上入口：
 
 ```text
 https://jiesny.github.io/jienigui-video/
+https://jienigui-video.pages.dev/
 ```
 
 GitHub 仓库：
@@ -39,6 +40,7 @@ http://127.0.0.1:4173/index.html
 提交部署：
 
 ```powershell
+Copy-Item -LiteralPath index.html -Destination v1.7.html
 git add index.html v1.7.html README.md HANDOFF.md
 git commit -m "Your change summary"
 git push
@@ -50,98 +52,121 @@ git push
 & 'C:\Users\19255\AppData\Local\Microsoft\WinGet\Packages\GitHub.cli_Microsoft.Winget.Source_8wekyb3d8bbwe\bin\gh.exe' run list --repo jiesny/jienigui-video --limit 3
 ```
 
-部署成功后访问：
-
-```text
-https://jiesny.github.io/jienigui-video/
-```
+Cloudflare Pages 当前绑定 GitHub 仓库；推送到 `main` 后，GitHub Pages 和 Cloudflare Pages 都应触发更新。Cloudflare 的完成时间以 Cloudflare 后台为准。
 
 ## 3. 主要文件
 
-- `index.html`：主站点，包含 UI、采集源配置、聚合、搜索、详情播放逻辑。
-- `v1.7.html`：当前主页面备份，通常需要和 `index.html` 同步。
+- `index.html`：主站点，包含 UI、主题、采集源、聚合、搜索、详情播放、友链入口等逻辑。
+- `v1.7.html`：当前主页面备份，必须和 `index.html` 同步。
 - `.github/workflows/pages.yml`：GitHub Pages 自动部署工作流。
 - `.nojekyll`：避免 GitHub Pages 走 Jekyll 处理。
 - `README.md`：简短项目说明。
-- `HANDOFF.md`：当前交接文档。
+- `HANDOFF.md`：交接与使用文档。
 
-## 4. 当前采集源
+## 4. 当前访问入口与友链
 
-采集源配置位于 `index.html`：
+站点设置底部有“友链入口”，对应：
+
+| 入口 | 地址 | 标签 | 备注 |
+| --- | --- | --- | --- |
+| 杰尼龟影视（GitHub） | `https://jiesny.github.io/jienigui-video/` | 科学上网 | 适合科学上网环境，推荐使用香港、新加坡节点；非凡资源约 6 分钟有广告，鸭鸭资源可能有小广告浮窗。 |
+| 杰尼龟影视（Cloudflare） | `https://jienigui-video.pages.dev/` | 国内直连 | 适合国内直连环境；电影天堂、非凡资源直连稳定性可能波动。 |
+
+友链配置入口：
+
+```js
+const FRIEND_LINKS = [...]
+```
+
+## 5. 当前采集源与优先级
+
+采集源配置位于：
 
 ```js
 const DEFAULT_SOURCES = [...]
 ```
 
-当前源：
+当前顺序即默认优先级：
 
-| 名称 | ID | 接口 | 格式 |
-| --- | --- | --- | --- |
-| 非凡资源 | `source_ffzy` | `https://api.ffzyapi.com/api.php/provide/vod/` | JSON |
-| 电影天堂资源 | `source_dytt` | `https://caiji.dyttzyapi.com/api.php/provide/vod/at/xml/` | XML |
-| 优质资源库 | `source_yzzy` | `https://api.yzzy-api.com/api.php/provide/vod/at/xml/` | XML |
-| 如意资源 | `source_ryzy` | `https://cj.rycjapi.com/api.php/provide/vod/at/xml/` | XML |
-| 鸭鸭资源 | `source_yaya` | `https://cj.yayazy.net/api.php/provide/vod/` | JSON |
-| 西瓜资源 | `source_xigua` | `https://xgzy.tv/api.php/provide/vod/` | JSON |
+| 优先级 | 名称 | ID | 格式 | 说明 |
+| --- | --- | --- | --- | --- |
+| 1 | 电影天堂资源 | `source_dytt` | XML | 高优先级 |
+| 2 | 优质资源库 | `source_yzzy` | XML | 高优先级 |
+| 3 | 如意资源 | `source_ryzy` | XML | 高优先级 |
+| 4 | 西瓜资源 | `source_xigua` | JSON | 高优先级 |
+| 5 | 非凡资源 | `source_ffzy` | JSON | 低优先级，播放约 6 分钟有广告 |
+| 6 | 鸭鸭资源 | `source_yaya` | JSON | 低优先级，可能有小广告浮窗 |
 
-新增源时优先确认：
+低优先级源配置：
+
+```js
+const LOW_PRIORITY_SOURCE_IDS = ['source_ffzy', 'source_yaya'];
+```
+
+后续新增源时，先用 PowerShell 验证：
 
 ```powershell
 Invoke-WebRequest -Uri '接口地址?ac=list' -UseBasicParsing -TimeoutSec 20
 Invoke-WebRequest -Uri '接口地址?ac=detail&pg=1' -UseBasicParsing -TimeoutSec 20
 ```
 
-如果是 XML，源对象加 `format: 'xml'` 仅作为标识；实际解析由 `parseXmlData()` 判断文本是否以 `<` 开头。
+XML 源对象加 `format: 'xml'` 作为展示标识；实际解析由 `parseApiResponse()` 和 `parseXmlData()` 处理。
 
-## 5. 聚合逻辑
+## 6. 搜索与聚合逻辑
 
-核心函数：
+搜索已从串行改为并发增量：
 
-- `fetchWithFallback(targetUrl)`：通过公共 CORS 代理访问采集接口。
-- `fetchList(source, options)`：拉取某个源的列表或搜索结果。
-- `fetchCategories(source)`：拉取并缓存某个源的分类。
-- `fetchAllCategories()`：拉取全部源分类。
-- `fetchStandardCategoryList(source, standardCategory, page)`：把某个源的小分类映射到大类。
-- `fetchAggregatedList(standardCategory, page)`：跨全部源拉取、合并、去重并展示。
-- `groupSearchResults(items)`：搜索结果按影片名聚合来源。
+- `handleGlobalSearch()`：创建搜索批次 `searchRunId`，所有源并发请求，任意源返回后立即更新搜索结果。
+- `searchCompletedCount / searchTotalCount / searchPendingSources`：用于展示搜索进度。
+- `fetchList(source, options)`：支持透传 `timeoutMs`。
+- 搜索场景使用 `timeoutMs: 5000`；首页、分类、自检仍使用默认 10 秒。
+- `localScanSearch()`：当源不支持关键词搜索时，最多扫描 2 页，避免拖慢响应。
+- `groupSearchResults(items)`：按片名和年份聚合来源。
+- `sortBySourcePriority(items)`：保证非凡、鸭鸭排到来源列表后面。
 
-目前首页、分类页是全源聚合，不再预选单个采集源。搜索页原本就是跨源搜索。
+搜索记录：
 
-## 6. 分类与筛选
+- 本地搜索记录保存在 `localStorage`。
+- 配置项：
 
-大类配置：
+```js
+const SEARCH_HISTORY_KEY = 'jng_search_history';
+const MAX_SEARCH_HISTORY = 12;
+```
+
+- 搜索框聚焦/点击/输入时显示历史。
+- 支持点击复搜、单条删除、清空全部。
+
+## 7. 分类、首页与详情
+
+分类配置：
 
 ```js
 const STANDARD_CATEGORIES = [...]
-```
-
-筛选项配置：
-
-```js
 const FILTER_GROUPS = {...}
 const COMMON_FILTERS = {...}
 ```
 
-分类页显示：
+核心函数：
 
-- 类型
-- 地区
-- 语言
-- 年份
-- 排序
+- `fetchCategories(source)`：拉取某个源分类。
+- `fetchAllCategories()`：并发拉取全部源分类。
+- `fetchStandardCategoryList(source, standardCategory, page)`：将源内小分类映射到大类。
+- `fetchAggregatedList(standardCategory, page)`：跨源拉取、合并、去重、排序。
+- `groupVideosByTitle(items)`：同名同年影片聚合来源。
 
-分类匹配逻辑是根据各采集源返回的 `type_name` 和 `STANDARD_CATEGORIES.aliases` 做包含匹配。
+首页和分类页现在会保留 `sources`，进入详情后可以展示多个可用来源。
 
-后续如果出现分类为空，优先检查：
+详情相关函数：
 
-1. 源是否返回 `class` 或 XML 列表里是否有 `tid/type`。
-2. `STANDARD_CATEGORIES.aliases` 是否覆盖了该源的分类名。
-3. `FILTER_GROUPS` 是否过度过滤。
-4. `fetchAggregatedList()` 是否因为代理失败跳过了某些源。
+- `openSearchResult(item)`
+- `openAggregatedDetail(video)`
+- `openDetailFromVideo(video, source, push)`
+- `selectDetailSource(index)`
 
-## 7. 播放线路处理
+## 8. 播放线路处理
 
-播放 URL 解析在：
+播放 URL 解析：
 
 ```js
 parsePlayUrls(rawUrlStr, sourceId)
@@ -154,59 +179,62 @@ parsePlayUrls(rawUrlStr, sourceId)
 - 鸭鸭资源：接口本身返回 `yym3u8`，不需要跳过。
 - XML 源：`parseXmlData()` 只提取 `flag` 包含 `m3u8` 的 `dd`。
 
-域名替换在：
+域名替换：
 
 ```js
 const URL_REPLACEMENTS = [...]
 ```
 
-目前包含非凡、电影天堂等源的旧域名替换规则。
+如遇某源播放失败，优先检查 `vod_play_url` 是否被正确解析，以及是否需要新增旧域名替换规则。
 
-## 8. 已知问题与后续优先级
+## 9. 代理与 Cloudflare Pages 注意事项
 
-### 8.1 首页进入详情只显示单个来源
-
-当前首页和分类页虽然是聚合列表，但每张卡片仍然只携带一个来源的 `video` 对象。搜索页通过 `groupSearchResults()` 能把同名影片的多个来源聚合到详情页。
-
-后续建议：
-
-1. 在 `fetchAggregatedList()` 内不要只做简单 `dedupeVideos()`。
-2. 参考 `groupSearchResults()`，把同名影片聚合成 `{ ...video, sources: [...] }`。
-3. 首页和分类页点击时，如果 `video.sources` 存在，走类似 `openSearchResult(video)` 的逻辑。
-4. 这样从首页/分类进入详情，也能显示全部可用来源。
-
-注意：同名聚合建议用 `vod_name + vod_year`，不要只用 `vod_id`，因为不同源的 ID 不通用。
-
-### 8.2 分类为空或不准
-
-目前大类映射主要靠关键词包含。建议后续进一步建立按源的分类映射表，例如：
+静态托管无法运行后端代理，页面依赖公共 CORS 代理：
 
 ```js
-const SOURCE_CATEGORY_MAP = {
-  source_ffzy: {
-    movie: ['电影片', '动作片', '喜剧片'],
-    series: ['连续剧', '国产剧']
-  }
-}
+const PROXIES = [...]
 ```
 
-这样比全局 `aliases` 更准确，也能减少空分类。
+当前包括：
 
-### 8.3 优质资源库海报缺失
-
-优质资源库的部分列表接口没有返回 `pic`，因此页面会显示默认封面。可考虑在详情接口或搜索接口补拉完整信息，但会增加请求量。
-
-### 8.4 公共代理不稳定
-
-GitHub Pages 不能运行后端代理，只能靠公共 CORS 代理。页面内置：
-
-- `AllOrigins`
 - `Corsproxy.io`
+- `AllOrigins`
 - `Codetabs`
 
-有些源会被某些代理 WAF 拦截。用户侧建议使用新加坡节点进行科学上网，页面已有提示。
+`fetchWithFallback(targetUrl, options)` 会按当前代理和备用代理逐个尝试。`parseApiResponse()` 会识别 HTML 错误页、403、Cloudflare 拦截页，避免把错误页当 XML 空列表。
 
-## 9. 浏览器历史适配
+已知差异：
+
+- GitHub Pages 环境下部分接口更稳定。
+- Cloudflare Pages 国内可直连，但部分代理/源可能返回 403、空列表或波动。
+- 如果 Cloudflare 入口自检异常而 GitHub 正常，优先检查公共代理返回内容，而不是直接判定采集源失效。
+
+## 10. 主题与移动端布局
+
+主题配置：
+
+```js
+const THEMES = [...]
+```
+
+当前主题：
+
+- 暗夜玫瑰
+- 深海蓝
+- 松林绿
+- 暖影橙
+- 纯白花嫁
+- 透明玻璃
+
+注意：
+
+- 纯白花嫁使用纯白、柔粉、淡金提示风格。
+- 透明玻璃在手机端关闭背景和卡片流动动画，避免频繁闪动；仍保留玻璃模糊质感。
+- 移动端顶部布局为 logo、搜索框、设置键一行。
+- 竖屏详情页播放器占满屏宽，详情内容在下方滚动。
+- 横屏详情页为左侧播放器、右侧详情栏。
+
+## 11. 浏览器历史与路由
 
 页面使用 `history.pushState/replaceState` 支持：
 
@@ -218,24 +246,26 @@ GitHub Pages 不能运行后端代理，只能靠公共 CORS 代理。页面内�
 
 相关函数：
 
-- `routeState()`
-- `routeUrl()`
-- `pushRoute()`
-- `replaceRoute()`
-- `applyRouteState()`
-- `stateFromUrl()`
+```js
+routeState()
+routeUrl()
+pushRoute()
+replaceRoute()
+applyRouteState()
+stateFromUrl()
+```
 
-后续新增视图时，需要同步这些函数，否则浏览器后退/前进会失效。
+新增页面状态时必须同步这些函数，否则浏览器后退/前进会失效。
 
-## 10. 开发注意事项
+## 12. 提交前检查清单
 
-1. 编辑 `index.html` 后同步 `v1.7.html`：
+每次改 `index.html` 后必须同步：
 
 ```powershell
 Copy-Item -LiteralPath index.html -Destination v1.7.html
 ```
 
-2. 提交前做语法检查：
+语法检查：
 
 ```powershell
 $content=Get-Content -LiteralPath index.html -Raw
@@ -244,19 +274,24 @@ Set-Content -LiteralPath "$env:TEMP\jng-check.js" -Value $script -Encoding UTF8
 node --check "$env:TEMP\jng-check.js"
 ```
 
-3. 本地浏览器验证重点：
+本地验证重点：
 
 - 首页能加载。
+- 搜索能快速出首批结果，进度不会卡死。
+- 搜索记录能展示、复搜、单条删除、清空。
 - 分类页 `?view=category&cat=movie` 能加载。
-- 搜索能跨源返回。
-- 详情弹窗能播放并切换来源。
-- 浏览器后退能关闭详情或返回上一页。
+- 详情页能展示多个来源并切换。
+- 手机竖屏播放器自适应正常。
+- 设置页自检、主题、友链入口正常。
+- GitHub Pages 工作流完成。
 
-4. 不要用会破坏中文编码的写入方式。优先使用 `apply_patch` 修改文件。
+部署后检查：
 
-5. 如果 PowerShell 写文件，必须确认 UTF-8 和换行没有破坏 HTML。
+```powershell
+& 'C:\Users\19255\AppData\Local\Microsoft\WinGet\Packages\GitHub.cli_Microsoft.Winget.Source_8wekyb3d8bbwe\bin\gh.exe' run list --repo jiesny/jienigui-video --limit 3
+```
 
-## 11. 常见改动入口
+## 13. 常见改动入口
 
 新增采集源：
 
@@ -264,23 +299,31 @@ node --check "$env:TEMP\jng-check.js"
 const DEFAULT_SOURCES = [...]
 ```
 
-新增旧域名替换：
+调整低优先级源：
 
 ```js
-const URL_REPLACEMENTS = [...]
+const LOW_PRIORITY_SOURCE_IDS = [...]
 ```
 
-调整大类：
+调整友链：
 
 ```js
-const STANDARD_CATEGORIES = [...]
+const FRIEND_LINKS = [...]
 ```
 
-调整筛选按钮：
+调整主题：
 
 ```js
-const FILTER_GROUPS = {...}
-const COMMON_FILTERS = {...}
+const THEMES = [...]
+body[data-theme="..."] { ... }
+```
+
+调整搜索：
+
+```js
+handleGlobalSearch()
+localScanSearch()
+groupSearchResults()
 ```
 
 调整播放线路：
@@ -294,20 +337,7 @@ parseXmlData(...)
 
 ```js
 openSearchResult(...)
+openAggregatedDetail(...)
 openDetailFromVideo(...)
 selectDetailSource(...)
 ```
-
-## 12. 最近一次用户明确提出但尚未实现的需求
-
-用户最新功能诉求：
-
-1. 从主页或分类页进入影视详情页时，也要像搜索结果一样展示所有可用聚合来源。
-2. 浏览分类时很多分类为空，希望总结各网站分类并重新分类。
-
-推荐下一步实现顺序：
-
-1. 改 `fetchAggregatedList()` 输出结构，让首页/分类列表保留 `sources`。
-2. 改 `VideoCard` 点击逻辑，如果有 `sources` 就进入多源详情。
-3. 增加 `SOURCE_CATEGORY_MAP` 做按源分类映射。
-4. 验证 `movie/series/anime/show/short` 五个主分类。
