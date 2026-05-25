@@ -394,16 +394,23 @@
                 </button>
             </div>
 
-            <div v-if="loading" class="py-20 text-center text-zinc-400">
+            <div v-if="loading && !searchResults.length" class="py-20 text-center text-zinc-400">
                 <i class="fa-solid fa-spinner animate-spin text-2xl mb-3 block"></i>
-                正在聚合多个采集源...
+                <div>{{ searchProgressText || '正在聚合多个采集源...' }}</div>
+                <div v-if="searchPendingSources.length" class="mt-2 text-xs text-zinc-500">
+                    等待：{{ searchPendingSources.join('、') }}
+                </div>
             </div>
 
-            <div v-else-if="errorMsg" class="rounded-lg bg-rose-950/30 border border-rose-900 p-6 text-rose-200 text-sm">
+            <div v-if="viewMode === 'search' && loading && searchResults.length" class="rounded-lg border border-white/10 bg-zinc-950 px-4 py-3 text-sm text-zinc-400">
+                <i class="fa-solid fa-spinner animate-spin mr-2"></i>{{ searchProgressText }}
+            </div>
+
+            <div v-if="errorMsg" class="rounded-lg bg-rose-950/30 border border-rose-900 p-6 text-rose-200 text-sm">
                 {{ errorMsg }}
             </div>
 
-            <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div v-if="searchResults.length" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 <article v-for="item in searchResults" :key="item.key" @click="openSearchResult(item)"
                     class="group rounded-lg overflow-hidden bg-zinc-950 border border-white/10 cursor-pointer hover:border-rose-500 transition">
                     <div class="relative aspect-[3/4] poster-skeleton">
@@ -773,6 +780,10 @@ createApp({
         const searchQuery = ref('');
         const searchInputEl = ref(null);
         const lastSearchKeyword = ref('');
+        const searchCompletedCount = ref(0);
+        const searchTotalCount = ref(0);
+        const searchPendingSources = ref([]);
+        let searchRunId = 0;
         const selectedCategory = ref(null);
         const sourceCategories = reactive({});
         const smartFilters = reactive({ type: '', area: '', lang: '', year: '', sort: '综合' });
@@ -791,6 +802,11 @@ createApp({
             groups.push({ key: 'year', name: '年份', items: COMMON_FILTERS.year });
             groups.push({ key: 'sort', name: '排序', items: COMMON_FILTERS.sort.filter(item => item !== '综合') });
             return groups;
+        });
+        const searchProgressText = computed(() => {
+            if (viewMode.value !== 'search' || !loading.value) return '';
+            if (!searchTotalCount.value) return '正在准备搜索...';
+            return `正在搜索，已完成 ${searchCompletedCount.value}/${searchTotalCount.value} 个通道`;
         });
         const videos = ref([]);
         const searchResults = ref([]);
@@ -1084,11 +1100,13 @@ createApp({
             ];
             let lastError = null;
             for (const proxy of queue) {
+                let timeoutId = null;
                 try {
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 10000);
+                    timeoutId = setTimeout(() => controller.abort(), options.timeoutMs || 10000);
                     const response = await fetch(proxy.getUrl(targetUrl), { signal: controller.signal });
                     clearTimeout(timeoutId);
+                    timeoutId = null;
                     if (!response.ok) throw new Error(`HTTP ${response.status}`);
                     const text = await response.text();
                     if (text.includes('不支持搜索')) {
@@ -1106,6 +1124,8 @@ createApp({
                     if (error.sourceUnsupported) throw error;
                     lastError = error;
                     console.warn(`[代理失败] ${proxy.name}: ${error.message}`);
+                } finally {
+                    if (timeoutId) clearTimeout(timeoutId);
                 }
             }
             throw lastError || new Error('代理通道不可用');
@@ -1223,7 +1243,8 @@ createApp({
             if (options.categoryId) params.t = options.categoryId;
             if (options.keyword) params.wd = options.keyword;
             return normalizeApiData(await fetchWithFallback(apiUrl(source.url, params), {
-                requireNonEmptyList: !!options.requireNonEmpty
+                requireNonEmptyList: !!options.requireNonEmpty,
+                timeoutMs: options.timeoutMs
             }), source);
         }
 
@@ -1318,10 +1339,11 @@ createApp({
             };
         }
 
-        async function localScanSearch(source, keyword) {
+        async function localScanSearch(source, keyword, options = {}) {
             const matched = [];
-            for (let page = 1; page <= 8; page++) {
-                const data = await fetchList(source, { page });
+            const maxPages = options.maxPages || 2;
+            for (let page = 1; page <= maxPages; page++) {
+                const data = await fetchList(source, { page, timeoutMs: options.timeoutMs });
                 if (Array.isArray(data.list)) {
                     matched.push(...data.list.filter(item => [item.vod_name, item.vod_sub, item.vod_actor, item.vod_director].some(text => (text || '').includes(keyword))));
                 }
@@ -1446,35 +1468,51 @@ createApp({
         async function handleGlobalSearch() {
             const keyword = (searchInputEl.value?.value || searchQuery.value).trim();
             if (!keyword) return;
+            const runId = ++searchRunId;
+            const searchTimeoutMs = 5000;
             searchQuery.value = keyword;
             lastSearchKeyword.value = keyword;
             viewMode.value = 'search';
             loading.value = true;
             errorMsg.value = '';
             searchResults.value = [];
+            searchCompletedCount.value = 0;
+            searchTotalCount.value = sources.value.length;
+            searchPendingSources.value = sources.value.map(source => source.name);
 
             const results = [];
-            for (const source of sources.value) {
+            pushRoute();
+
+            const searchOneSource = async source => {
                 try {
                     let data;
                     try {
-                        data = await fetchList(source, { keyword, page: 1 });
+                        data = await fetchList(source, { keyword, page: 1, timeoutMs: searchTimeoutMs });
                     } catch (error) {
                         if (error.sourceUnsupported) {
-                            data = await localScanSearch(source, keyword);
+                            data = await localScanSearch(source, keyword, { maxPages: 2, timeoutMs: searchTimeoutMs });
                         } else {
                             throw error;
                         }
                     }
+                    if (runId !== searchRunId) return;
                     (data.list || []).forEach(video => results.push({ ...video, source_id: source.id, source_name: source.name }));
+                    searchResults.value = groupSearchResults(results);
                 } catch (error) {
                     console.warn(`[搜索跳过] ${source.name}: ${error.message}`);
+                } finally {
+                    if (runId !== searchRunId) return;
+                    searchCompletedCount.value += 1;
+                    searchPendingSources.value = searchPendingSources.value.filter(name => name !== source.name);
                 }
-            }
+            };
+
+            await Promise.allSettled(sources.value.map(source => searchOneSource(source)));
+            if (runId !== searchRunId) return;
             searchResults.value = groupSearchResults(results);
             if (!searchResults.value.length) errorMsg.value = '没有搜索到相关内容，请换一个关键词。';
             loading.value = false;
-            pushRoute();
+            searchPendingSources.value = [];
         }
 
         function groupSearchResults(items) {
@@ -1748,7 +1786,8 @@ createApp({
 
         return {
             viewMode, settingsOpen, selectedTopKey, topNav, sources, activeSourceId, activeHomeSource, searchQuery, searchInputEl,
-            lastSearchKeyword, selectedCategory, visibleCategories, activeFilterGroups, videos, searchResults,
+            lastSearchKeyword, searchCompletedCount, searchTotalCount, searchPendingSources, searchProgressText,
+            selectedCategory, visibleCategories, activeFilterGroups, videos, searchResults,
             favoriteVideos, currentPage, totalPages, loading, errorMsg, homeSections, heroVideo, activeVideo,
             detailSources, currentDetailSourceIdx, playSources, currentSourceIdx, currentEpisodeIdx, videoPlayer,
             playLoading, toast, hotKeywords, proxies: PROXIES, selectedProxyId, themes: THEMES, currentTheme, currentThemeName,
