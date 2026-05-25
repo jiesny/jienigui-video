@@ -53,6 +53,68 @@
         .nav-glass { background: rgba(10, 10, 10, .86); backdrop-filter: blur(18px); }
         .poster-skeleton { background: linear-gradient(135deg, #1f2937, #111827); }
         .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        body[data-theme="midnight"] {
+            --app-bg: #0a0a0a;
+            --panel-bg: #09090b;
+            --soft-bg: #18181b;
+            --border-color: rgba(255, 255, 255, .1);
+            --accent: #e11d48;
+            --accent-hover: #f43f5e;
+            --accent-soft: rgba(225, 29, 72, .18);
+            --text-main: #f4f4f5;
+            --text-muted: #a1a1aa;
+        }
+        body[data-theme="ocean"] {
+            --app-bg: #06131f;
+            --panel-bg: #0b1725;
+            --soft-bg: #102235;
+            --border-color: rgba(125, 211, 252, .18);
+            --accent: #0891b2;
+            --accent-hover: #06b6d4;
+            --accent-soft: rgba(8, 145, 178, .2);
+            --text-main: #f0f9ff;
+            --text-muted: #93c5fd;
+        }
+        body[data-theme="forest"] {
+            --app-bg: #07130d;
+            --panel-bg: #0d1b13;
+            --soft-bg: #14261b;
+            --border-color: rgba(134, 239, 172, .18);
+            --accent: #16a34a;
+            --accent-hover: #22c55e;
+            --accent-soft: rgba(34, 197, 94, .18);
+            --text-main: #f0fdf4;
+            --text-muted: #a7f3d0;
+        }
+        body[data-theme="ember"] {
+            --app-bg: #150b08;
+            --panel-bg: #1d100c;
+            --soft-bg: #2b1811;
+            --border-color: rgba(253, 186, 116, .18);
+            --accent: #ea580c;
+            --accent-hover: #f97316;
+            --accent-soft: rgba(249, 115, 22, .2);
+            --text-main: #fff7ed;
+            --text-muted: #fed7aa;
+        }
+        body {
+            background: var(--app-bg);
+            color: var(--text-main);
+            transition: background-color .2s ease, color .2s ease;
+        }
+        body .nav-glass { background: color-mix(in srgb, var(--app-bg) 86%, transparent); }
+        body .bg-zinc-950 { background-color: var(--panel-bg) !important; }
+        body .bg-zinc-900 { background-color: var(--soft-bg) !important; }
+        body .border-white\/10 { border-color: var(--border-color) !important; }
+        body .bg-rose-600 { background-color: var(--accent) !important; }
+        body .hover\:bg-rose-500:hover { background-color: var(--accent-hover) !important; }
+        body .text-rose-300 { color: color-mix(in srgb, var(--accent-hover) 78%, white) !important; }
+        body .text-rose-500 { color: var(--accent-hover) !important; }
+        body .border-rose-500 { border-color: var(--accent-hover) !important; }
+        body .focus\:border-rose-500:focus { border-color: var(--accent-hover) !important; }
+        body .hover\:border-rose-500:hover { border-color: var(--accent-hover) !important; }
+        body .text-zinc-500 { color: color-mix(in srgb, var(--text-muted) 70%, #6b7280) !important; }
+        body .text-zinc-400, body .text-zinc-300 { color: var(--text-muted) !important; }
         .app-shell {
             width: min(1280px, calc(100vw - 24px));
             margin-left: auto;
@@ -63,9 +125,33 @@
         }
         .safe-scroll-x { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; max-width: 100%; scrollbar-width: none; }
         .safe-scroll-x::-webkit-scrollbar { display: none; }
+        .detail-shell { max-width: 72rem; margin-left: auto; margin-right: auto; min-height: 100dvh; padding: 1rem; display: flex; align-items: center; }
+        .detail-panel { width: 100%; border-radius: .5rem; border: 1px solid var(--border-color); background: var(--panel-bg); box-shadow: 0 25px 50px -12px rgba(0,0,0,.75); overflow: hidden; }
+        .player-frame { background: #000; aspect-ratio: 16 / 9; min-height: 260px; position: relative; }
+        .detail-side { padding: 1.25rem; max-height: 82vh; overflow-y: auto; }
+        @media (max-width: 1023px) and (orientation: portrait) {
+            .detail-shell { width: 100vw; min-height: 100dvh; padding: 0; display: block; }
+            .detail-panel { min-height: 100dvh; border-radius: 0; border-left: 0; border-right: 0; overflow: visible; }
+            .detail-grid { display: block; }
+            .player-frame {
+                position: sticky;
+                top: 0;
+                z-index: 5;
+                width: 100vw;
+                min-height: 0;
+                height: min(56.25vw, 48dvh);
+                aspect-ratio: auto;
+            }
+            .detail-side {
+                max-height: none;
+                overflow: visible;
+                padding: 1rem;
+                padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+            }
+        }
     </style>
 </head>
-<body class="text-zinc-100 selection:bg-rose-500 selection:text-white">
+<body data-theme="midnight" class="text-zinc-100 selection:bg-rose-500 selection:text-white">
 <div id="app" class="min-h-screen">
     <header class="sticky top-0 z-40 nav-glass border-b border-white/10">
         <div class="app-shell py-3 sm:h-16 sm:py-0 flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4">
@@ -272,20 +358,20 @@
     </main>
 
     <div v-if="activeVideo" class="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm overflow-y-auto">
-        <div class="max-w-6xl mx-auto min-h-screen p-4 flex items-center">
-            <div class="w-full rounded-lg border border-white/10 bg-zinc-950 shadow-2xl overflow-hidden">
+        <div class="detail-shell">
+            <div class="detail-panel">
                 <div class="relative">
                     <button @click="closeDetail" class="absolute right-4 top-4 z-10 w-9 h-9 rounded-lg bg-black/70 hover:bg-zinc-800">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
-                    <div class="grid grid-cols-1 lg:grid-cols-[1fr_380px]">
-                        <div class="bg-black aspect-video lg:aspect-auto min-h-[260px] relative">
+                    <div class="detail-grid grid grid-cols-1 lg:grid-cols-[1fr_380px]">
+                        <div class="player-frame">
                             <video ref="videoPlayer" controls class="w-full h-full object-contain bg-black"></video>
                             <div v-if="playLoading" class="absolute inset-0 flex items-center justify-center bg-black/70 text-zinc-300 text-sm">
                                 <i class="fa-solid fa-spinner animate-spin mr-2"></i> 正在缓冲...
                             </div>
                         </div>
-                        <aside class="p-5 space-y-4 max-h-[82vh] overflow-y-auto">
+                        <aside class="detail-side space-y-4">
                             <div>
                                 <div class="text-xs text-rose-300 mb-2">{{ activeVideo.type_name || '影视' }} · {{ activeVideo.vod_remarks || '高清' }}</div>
                                 <h2 class="text-2xl font-black">{{ activeVideo.vod_name }}</h2>
@@ -336,7 +422,7 @@
             <div class="sticky top-0 z-10 nav-glass border-b border-white/10 px-5 py-4 flex items-center justify-between">
                 <div>
                     <h2 class="font-black text-lg">站点设置</h2>
-                    <p class="text-xs text-zinc-500 mt-1">采集源、代理通道、部署信息</p>
+                    <p class="text-xs text-zinc-500 mt-1">通道自检、主题外观</p>
                 </div>
                 <button @click="closeSettings" class="w-9 h-9 rounded-lg bg-zinc-900 border border-white/10 hover:bg-zinc-800">
                     <i class="fa-solid fa-xmark"></i>
@@ -346,37 +432,43 @@
             <div class="p-5 space-y-6">
                 <section class="space-y-3">
                     <div class="flex items-center justify-between">
-                        <h3 class="font-bold">聚合采集源</h3>
-                        <span class="text-xs text-zinc-500">只读配置</span>
+                        <h3 class="font-bold">采集通道状态自检</h3>
+                        <button @click="checkAllSources" :disabled="sourceCheckingAll" class="px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/10 text-xs text-zinc-300 hover:text-white disabled:opacity-50">
+                            <i class="fa-solid fa-rotate-right mr-1" :class="sourceCheckingAll ? 'animate-spin' : ''"></i> 重新检测
+                        </button>
                     </div>
+                    <p class="text-xs text-zinc-500 leading-relaxed">{{ sourceStatusSummary }}</p>
                     <div class="space-y-2">
                         <div v-for="source in sources" :key="source.id" class="rounded-lg border border-white/10 bg-zinc-900 p-3">
                             <div class="flex items-center justify-between gap-3">
                                 <div class="text-left min-w-0">
                                     <div class="font-bold text-sm truncate">{{ source.name }}</div>
-                                    <div class="text-[11px] text-zinc-500 truncate mt-1">{{ source.url }}</div>
+                                    <div class="text-[11px] text-zinc-500 truncate mt-1">{{ source.format === 'xml' ? 'XML 采集通道' : 'JSON 采集通道' }}</div>
+                                </div>
+                                <div class="shrink-0 flex items-center gap-2 text-xs" :class="sourceStatusClass(sourceHealth[source.id]?.status)">
+                                    <i :class="sourceStatusIcon(sourceHealth[source.id]?.status)"></i>
+                                    <span>{{ sourceStatusText(sourceHealth[source.id]) }}</span>
                                 </div>
                             </div>
+                            <div v-if="sourceHealth[source.id]?.message" class="mt-2 text-[11px] text-zinc-500 truncate">{{ sourceHealth[source.id].message }}</div>
                         </div>
                     </div>
-                    <p class="text-xs text-zinc-500 leading-relaxed">首页、分类和搜索默认聚合全部采集源；采集源增减需要在代码中维护。</p>
                 </section>
 
                 <section class="space-y-3">
-                    <h3 class="font-bold">在线代理通道</h3>
-                    <select v-model="selectedProxyId" @change="saveProxy"
-                        class="w-full bg-zinc-900 border border-white/10 rounded-lg px-3 py-2 text-sm outline-none focus:border-rose-500">
-                        <option v-for="proxy in proxies" :key="proxy.id" :value="proxy.id" class="bg-zinc-950">{{ proxy.name }}</option>
-                    </select>
-                    <p class="text-xs text-zinc-500 leading-relaxed">GitHub Pages 是静态托管，不能运行后端代理。这里使用公共在线代理通道访问采集接口，不需要安装浏览器插件。</p>
-                </section>
-
-                <section class="space-y-3">
-                    <h3 class="font-bold">GitHub Pages 部署</h3>
-                    <div class="rounded-lg bg-zinc-900 border border-white/10 p-3 text-xs text-zinc-400 leading-relaxed space-y-2">
-                        <p>入口文件：<code class="text-rose-300">index.html</code></p>
-                        <p>部署位置：仓库根目录，Settings -> Pages -> Deploy from a branch -> main / root。</p>
-                        <p>访问方式：手机、电脑、平板打开同一个 Pages HTTPS 地址即可。</p>
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold">主题切换</h3>
+                        <span class="text-xs text-zinc-500">{{ currentThemeName }}</span>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button v-for="theme in themes" :key="theme.id" @click="setTheme(theme.id)"
+                            :class="['rounded-lg border p-3 text-left transition', currentTheme === theme.id ? 'border-rose-500 bg-rose-600/15' : 'border-white/10 bg-zinc-900 hover:border-rose-500']">
+                            <span class="flex items-center gap-2">
+                                <span class="h-5 w-5 rounded-full border border-white/20" :style="{ background: theme.swatch }"></span>
+                                <span class="text-sm font-bold">{{ theme.name }}</span>
+                            </span>
+                            <span class="mt-1 block text-[11px] text-zinc-500">{{ theme.desc }}</span>
+                        </button>
                     </div>
                 </section>
             </div>
@@ -402,6 +494,12 @@ const DEFAULT_SOURCES = [
     { id: 'source_xigua', name: '西瓜资源', url: 'https://xgzy.tv/api.php/provide/vod/' }
 ];
 const SOURCE_SCHEMA_VERSION = '2026-05-25-yaya';
+const THEMES = [
+    { id: 'midnight', name: '暗夜玫瑰', desc: '默认深色观影界面', swatch: 'linear-gradient(135deg, #09090b, #e11d48)' },
+    { id: 'ocean', name: '深海蓝', desc: '冷色低亮度主题', swatch: 'linear-gradient(135deg, #06131f, #06b6d4)' },
+    { id: 'forest', name: '松林绿', desc: '柔和绿色主题', swatch: 'linear-gradient(135deg, #07130d, #22c55e)' },
+    { id: 'ember', name: '暖影橙', desc: '暖色高对比主题', swatch: 'linear-gradient(135deg, #150b08, #f97316)' }
+];
 
 const STANDARD_CATEGORIES = [
     { key: 'movie', name: '电影', aliases: ['电影', '电影片', '动作片', '喜剧片', '爱情片', '科幻片', '恐怖片', '剧情片', '战争片', '惊悚片', '犯罪片', '悬疑片', '冒险片', '奇幻片', '4K电影', '蓝光电影', '网络电影', 'Netflix电影', '邵氏电影', '院线', '大片'] },
@@ -540,6 +638,19 @@ createApp({
         const sources = ref([...DEFAULT_SOURCES]);
         const activeSourceId = ref('source_ffzy');
         const selectedProxyId = ref(localStorage.getItem('my_cms_proxy') || 'allorigins');
+        const currentTheme = ref(localStorage.getItem('my_cms_theme') || 'midnight');
+        const sourceHealth = reactive({});
+        const sourceCheckingAll = ref(false);
+        const currentThemeName = computed(() => THEMES.find(theme => theme.id === currentTheme.value)?.name || THEMES[0].name);
+        const sourceStatusSummary = computed(() => {
+            const statuses = sources.value.map(source => sourceHealth[source.id]?.status || 'idle');
+            const ok = statuses.filter(status => status === 'ok').length;
+            const fail = statuses.filter(status => status === 'fail').length;
+            const checking = statuses.filter(status => status === 'checking').length;
+            if (checking) return `正在检测 ${checking} 个通道，已通过 ${ok} 个。`;
+            if (ok || fail) return `最近一次自检：${ok} 个可用，${fail} 个异常。`;
+            return '打开设置后自动检测各采集通道是否能返回有效数据。';
+        });
         const activeHomeSource = computed(() => findSource(activeSourceId.value) || sources.value[0]);
         const searchQuery = ref('');
         const searchInputEl = ref(null);
@@ -593,6 +704,18 @@ createApp({
             toast.type = type;
             toast.show = true;
             setTimeout(() => toast.show = false, 3200);
+        }
+
+        function applyTheme(themeId) {
+            const nextTheme = THEMES.some(theme => theme.id === themeId) ? themeId : THEMES[0].id;
+            currentTheme.value = nextTheme;
+            document.body.dataset.theme = nextTheme;
+            localStorage.setItem('my_cms_theme', nextTheme);
+        }
+
+        function setTheme(themeId) {
+            applyTheme(themeId);
+            triggerToast(`已切换为${currentThemeName.value}`, 'success');
         }
 
         function routeState(extra = {}) {
@@ -658,6 +781,7 @@ createApp({
                 currentDetailSourceIdx.value = state.currentDetailSourceIdx || 0;
                 openDetailFromVideo(state.activeVideo, findSource(state.activeVideo.source_id), false);
             }
+            if (settingsOpen.value) checkAllSources();
         }
 
         function stateFromUrl() {
@@ -682,6 +806,27 @@ createApp({
 
         function findSource(id) {
             return sources.value.find(source => source.id === id);
+        }
+
+        function sourceStatusClass(status = 'idle') {
+            if (status === 'ok') return 'text-emerald-300';
+            if (status === 'fail') return 'text-rose-300';
+            if (status === 'checking') return 'text-amber-300';
+            return 'text-zinc-500';
+        }
+
+        function sourceStatusIcon(status = 'idle') {
+            if (status === 'ok') return 'fa-solid fa-circle-check';
+            if (status === 'fail') return 'fa-solid fa-circle-xmark';
+            if (status === 'checking') return 'fa-solid fa-spinner animate-spin';
+            return 'fa-regular fa-circle';
+        }
+
+        function sourceStatusText(health = {}) {
+            if (health.status === 'ok') return `正常 ${health.count || 0} 条`;
+            if (health.status === 'fail') return '异常';
+            if (health.status === 'checking') return '检测中';
+            return '未检测';
         }
 
         function filterButtonClass(key, value) {
@@ -1119,6 +1264,35 @@ createApp({
             triggerToast('代理通道已更新', 'success');
         }
 
+        async function checkSourceHealth(source) {
+            sourceHealth[source.id] = { status: 'checking', message: '正在请求采集通道...' };
+            try {
+                const data = await fetchList(source, { page: 1 });
+                const count = Array.isArray(data?.list) ? data.list.length : 0;
+                if (!count) throw new Error('未返回影片列表');
+                sourceHealth[source.id] = {
+                    status: 'ok',
+                    count,
+                    checkedAt: Date.now(),
+                    message: `最近检测通过，返回 ${count} 条内容`
+                };
+            } catch (error) {
+                sourceHealth[source.id] = {
+                    status: 'fail',
+                    count: 0,
+                    checkedAt: Date.now(),
+                    message: error?.sourceUnsupported ? '接口不支持当前检测方式' : (error?.message || '连接失败')
+                };
+            }
+        }
+
+        async function checkAllSources() {
+            if (sourceCheckingAll.value) return;
+            sourceCheckingAll.value = true;
+            await Promise.allSettled(sources.value.map(source => checkSourceHealth(source)));
+            sourceCheckingAll.value = false;
+        }
+
         async function handleGlobalSearch() {
             const keyword = (searchInputEl.value?.value || searchQuery.value).trim();
             if (!keyword) return;
@@ -1184,6 +1358,7 @@ createApp({
         function openSettings() {
             settingsOpen.value = true;
             pushRoute({ settingsOpen: true });
+            checkAllSources();
         }
 
         function closeSettings(push = true) {
@@ -1396,6 +1571,7 @@ createApp({
         }
 
         onMounted(async () => {
+            applyTheme(currentTheme.value);
             sources.value = [...DEFAULT_SOURCES];
             localStorage.removeItem('my_cms_multi_sources');
             localStorage.removeItem('my_cms_source_schema_version');
@@ -1424,8 +1600,10 @@ createApp({
             lastSearchKeyword, selectedCategory, visibleCategories, activeFilterGroups, videos, searchResults,
             favoriteVideos, currentPage, totalPages, loading, errorMsg, homeSections, heroVideo, activeVideo,
             detailSources, currentDetailSourceIdx, playSources, currentSourceIdx, currentEpisodeIdx, videoPlayer,
-            playLoading, toast, hotKeywords, proxies: PROXIES, selectedProxyId,
-            handleGlobalSearch, quickSearch, goHome, openFavorites, openSettings, closeSettings, setSmartFilter, filterButtonClass, saveProxy, openCategory, openCategoryByKey,
+            playLoading, toast, hotKeywords, proxies: PROXIES, selectedProxyId, themes: THEMES, currentTheme, currentThemeName,
+            sourceHealth, sourceCheckingAll, sourceStatusSummary,
+            handleGlobalSearch, quickSearch, goHome, openFavorites, openSettings, closeSettings, setSmartFilter, filterButtonClass, saveProxy, setTheme,
+            checkAllSources, sourceStatusClass, sourceStatusIcon, sourceStatusText, openCategory, openCategoryByKey,
             openTopCategory, handleSourceSwitch, changePage, openSearchResult, openDetailFromVideo, openAggregatedDetail, selectDetailSource,
             playEpisode, closeDetail, isFavorited, toggleFavorite, stripHtml, getPosterUrl, handlePosterError, findSource
         };
