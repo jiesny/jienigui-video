@@ -98,15 +98,15 @@
             --text-muted: #fed7aa;
         }
         body[data-theme="light"] {
-            --app-bg: #f7f9fd;
+            --app-bg: #fffdfd;
             --panel-bg: #ffffff;
-            --soft-bg: #eef3f8;
-            --border-color: rgba(15, 23, 42, .12);
-            --accent: #2563eb;
-            --accent-hover: #1d4ed8;
-            --accent-soft: rgba(37, 99, 235, .12);
-            --text-main: #0f172a;
-            --text-muted: #475569;
+            --soft-bg: #fff5f8;
+            --border-color: rgba(214, 162, 174, .28);
+            --accent: #f472b6;
+            --accent-hover: #ec4899;
+            --accent-soft: rgba(244, 114, 182, .14);
+            --text-main: #3f2430;
+            --text-muted: #8a6472;
         }
         body[data-theme="glass"] {
             --app-bg: #edf7ff;
@@ -158,6 +158,18 @@
             from { background-position: 0% 20%; }
             to { background-position: 100% 80%; }
         }
+        @media (max-width: 767px), (prefers-reduced-motion: reduce) {
+            body[data-theme="glass"]::before,
+            body[data-theme="glass"] .nav-glass,
+            body[data-theme="glass"] .bg-zinc-950,
+            body[data-theme="glass"] .bg-zinc-900,
+            body[data-theme="glass"] .detail-panel {
+                animation: none !important;
+                transform: none !important;
+                filter: none !important;
+                background-position: 50% 50% !important;
+            }
+        }
         body[data-theme="glass"] .nav-glass { background: rgba(248, 252, 255, .54); }
         body[data-theme="glass"] .bg-black\/60 { background-color: rgba(219, 234, 254, .46) !important; }
         body[data-theme="glass"] .bg-black\/70,
@@ -186,15 +198,15 @@
         body[data-theme="light"] .bg-white\/10,
         body[data-theme="glass"] .bg-white\/10 { background-color: rgba(15, 23, 42, .06) !important; }
         body[data-theme="light"] .hover\:bg-white\/10:hover,
-        body[data-theme="light"] .hover\:bg-white\/15:hover,
+        body[data-theme="light"] .hover\:bg-white\/15:hover { background-color: rgba(244, 114, 182, .12) !important; }
         body[data-theme="glass"] .hover\:bg-white\/10:hover,
         body[data-theme="glass"] .hover\:bg-white\/15:hover { background-color: rgba(37, 99, 235, .12) !important; }
         body[data-theme="light"] .bg-rose-600,
         body[data-theme="glass"] .bg-rose-600 { color: white !important; }
         body[data-theme="light"] .node-tip {
-            background-color: #eaf2ff !important;
-            border-color: rgba(37, 99, 235, .24) !important;
-            color: #1e3a8a !important;
+            background-color: #fff7ed !important;
+            border-color: rgba(217, 119, 6, .22) !important;
+            color: #92400e !important;
         }
         body[data-theme="glass"] .node-tip {
             background-color: rgba(255, 255, 255, .42) !important;
@@ -622,8 +634,8 @@ const THEMES = [
     { id: 'ocean', name: '深海蓝', desc: '冷色低亮度主题', swatch: 'linear-gradient(135deg, #06131f, #06b6d4)' },
     { id: 'forest', name: '松林绿', desc: '柔和绿色主题', swatch: 'linear-gradient(135deg, #07130d, #22c55e)' },
     { id: 'ember', name: '暖影橙', desc: '暖色高对比主题', swatch: 'linear-gradient(135deg, #150b08, #f97316)' },
-    { id: 'light', name: '白色主题', desc: '明亮清爽界面', swatch: 'linear-gradient(135deg, #ffffff, #2563eb)' },
-    { id: 'glass', name: '透明玻璃', desc: '淡蓝白流动玻璃', swatch: 'linear-gradient(135deg, rgba(255,255,255,.9), rgba(125,211,252,.72))' }
+    { id: 'light', name: '纯白花嫁', desc: '纯白柔粉花嫁风', swatch: 'linear-gradient(135deg, #ffffff, #fff1f2 48%, #f472b6)' },
+    { id: 'glass', name: '透明玻璃', desc: '淡蓝白玻璃质感', swatch: 'linear-gradient(135deg, rgba(255,255,255,.9), rgba(125,211,252,.72))' }
 ];
 
 const STANDARD_CATEGORIES = [
