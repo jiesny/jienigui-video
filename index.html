@@ -636,7 +636,7 @@
                                     <div class="mt-1 text-[11px] text-zinc-500 break-all">{{ link.url }}</div>
                                 </div>
                                 <span :class="['shrink-0 rounded px-2 py-1 text-[11px] font-bold', link.science ? 'bg-emerald-500/15 text-emerald-300' : 'bg-zinc-500/15 text-zinc-300']">
-                                    科学上网 {{ link.science ? 'Y' : 'N' }}
+                                    {{ link.science ? '适合科学上网' : '国内直连' }}
                                 </span>
                             </div>
                             <div class="mt-2 text-xs text-zinc-500 leading-relaxed">{{ link.note }}</div>
@@ -674,7 +674,7 @@ const FRIEND_LINKS = [
         url: 'https://jiesny.github.io/jienigui-video/',
         name: '杰尼龟影视（GitHub）',
         science: true,
-        note: '适合可科学上网环境；非凡资源约 6 分钟有广告，鸭鸭资源可能有小广告浮窗。'
+        note: '适合科学上网环境，推荐使用香港、新加坡节点；非凡资源约 6 分钟有广告，鸭鸭资源可能有小广告浮窗。'
     },
     {
         url: 'https://jienigui-video.pages.dev/',
