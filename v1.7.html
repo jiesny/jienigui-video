@@ -130,35 +130,25 @@
         body[data-theme="glass"]::before {
             content: "";
             position: fixed;
-            inset: -18%;
+            inset: 0;
             z-index: -1;
             background:
                 radial-gradient(circle at 18% 20%, rgba(255, 255, 255, .86), transparent 26%),
                 radial-gradient(circle at 72% 18%, rgba(186, 230, 253, .74), transparent 30%),
                 radial-gradient(circle at 48% 76%, rgba(219, 234, 254, .9), transparent 32%),
                 linear-gradient(135deg, #f8fcff, #e4f5ff 48%, #f7fbff);
-            animation: glass-flow 18s ease-in-out infinite alternate;
-        }
-        @keyframes glass-flow {
-            from { transform: translate3d(-2%, -1%, 0) scale(1); filter: hue-rotate(0deg); }
-            to { transform: translate3d(2%, 1.5%, 0) scale(1.04); filter: hue-rotate(8deg); }
         }
         body[data-theme="glass"] .nav-glass,
         body[data-theme="glass"] .bg-zinc-950,
         body[data-theme="glass"] .bg-zinc-900,
         body[data-theme="glass"] .detail-panel {
             background-image: linear-gradient(115deg, rgba(255, 255, 255, .4), rgba(255, 255, 255, .08) 42%, rgba(186, 230, 253, .26));
-            background-size: 220% 220%;
-            animation: glass-surface 12s ease-in-out infinite alternate;
+            background-size: 100% 100%;
             box-shadow: inset 0 1px 0 rgba(255, 255, 255, .56), 0 18px 50px rgba(72, 120, 160, .12);
             backdrop-filter: blur(24px) saturate(1.35);
             -webkit-backdrop-filter: blur(24px) saturate(1.35);
         }
-        @keyframes glass-surface {
-            from { background-position: 0% 20%; }
-            to { background-position: 100% 80%; }
-        }
-        @media (max-width: 767px), (prefers-reduced-motion: reduce) {
+        @media (prefers-reduced-motion: reduce) {
             body[data-theme="glass"]::before,
             body[data-theme="glass"] .nav-glass,
             body[data-theme="glass"] .bg-zinc-950,
@@ -238,12 +228,16 @@
         }
         .safe-scroll-x { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; max-width: 100%; scrollbar-width: none; }
         .safe-scroll-x::-webkit-scrollbar { display: none; }
-        .detail-overlay { overscroll-behavior: contain; }
+        .detail-overlay { overscroll-behavior: contain; overflow-x: hidden; }
         .detail-shell { width: min(1680px, calc(100vw - 64px)); max-width: 100%; margin-left: auto; margin-right: auto; min-height: 100dvh; padding: 1rem 0; display: flex; align-items: center; }
         .detail-panel { width: 100%; max-width: 100%; max-height: calc(100dvh - 32px); border-radius: .5rem; border: 1px solid var(--border-color); background: var(--panel-bg); box-shadow: 0 25px 50px -12px rgba(0,0,0,.75); overflow: hidden; }
-        .detail-grid { display: grid !important; min-height: min(76dvh, 820px); }
-        .player-frame { background: #000; position: relative; min-height: 360px; height: min(76dvh, 820px); }
-        .detail-side { padding: 1.25rem; max-height: 82vh; overflow-y: auto; }
+        .detail-panel * { min-width: 0; }
+        .detail-grid { display: grid !important; min-height: min(76dvh, 820px); width: 100%; max-width: 100%; overflow: hidden; }
+        .player-frame { background: #000; position: relative; min-height: 360px; height: min(76dvh, 820px); width: 100%; max-width: 100%; overflow: hidden; }
+        .detail-side { padding: 1.25rem; max-height: 82vh; overflow-y: auto; overflow-x: hidden; width: 100%; max-width: 100%; overflow-wrap: anywhere; }
+        .detail-title, .detail-desc { overflow-wrap: anywhere; word-break: break-word; }
+        .episode-grid { grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr)); }
+        .episode-grid button { max-width: 100%; }
         @media (min-width: 1024px) {
             .detail-grid { grid-template-columns: minmax(0, 1fr) 360px !important; }
             .detail-side { max-height: min(76dvh, 820px); }
@@ -258,7 +252,6 @@
             .mobile-settings { order: 2 !important; margin-left: 0; }
         }
         @media (max-width: 1023px) and (orientation: portrait) {
-            .detail-overlay { overflow-x: hidden; }
             .detail-shell { width: 100%; min-height: 100dvh; padding: 0; display: block; overflow-x: hidden; }
             .detail-panel { min-height: 100dvh; max-height: none; border-radius: 0; border-left: 0; border-right: 0; overflow: hidden; }
             .detail-grid { display: block !important; }
@@ -274,12 +267,14 @@
             }
             .detail-side {
                 max-height: none;
-                overflow: visible;
+                overflow-x: hidden;
+                overflow-y: visible;
                 width: 100%;
                 max-width: 100%;
                 padding: 1rem;
                 padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
             }
+            .episode-grid { grid-template-columns: repeat(auto-fit, minmax(min(8.5rem, 100%), 1fr)); }
         }
     </style>
 </head>
@@ -527,9 +522,9 @@
                             </div>
                         </div>
                         <aside class="detail-side space-y-4">
-                            <div>
+                            <div class="min-w-0">
                                 <div class="text-xs text-rose-300 mb-2">{{ activeVideo.type_name || '影视' }} · {{ activeVideo.vod_remarks || '高清' }}</div>
-                                <h2 class="text-2xl font-black">{{ activeVideo.vod_name }}</h2>
+                                <h2 class="detail-title text-2xl font-black">{{ activeVideo.vod_name }}</h2>
                                 <p class="text-xs text-zinc-500 mt-2">{{ activeVideo.vod_year || '' }} {{ activeVideo.vod_area || '' }} {{ activeVideo.vod_lang || '' }}</p>
                             </div>
 
@@ -555,7 +550,7 @@
                             <div v-if="playSources.length" class="space-y-3">
                                 <div v-for="(group, sourceIdx) in playSources" :key="sourceIdx">
                                     <h3 class="text-sm font-bold mb-2">{{ group.sourceName }}</h3>
-                                    <div class="grid grid-cols-3 gap-2">
+                                    <div class="episode-grid grid gap-2">
                                         <button v-for="(ep, epIdx) in group.episodes" :key="epIdx" @click="playEpisode(ep.url, sourceIdx, epIdx)"
                                             :class="['px-2 py-2 rounded-lg text-xs border truncate', currentSourceIdx === sourceIdx && currentEpisodeIdx === epIdx ? 'bg-rose-600 border-rose-500' : 'bg-zinc-900 border-white/10 text-zinc-300']">
                                             {{ ep.name }}
@@ -563,7 +558,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <p class="text-sm text-zinc-400 leading-relaxed">{{ stripHtml(activeVideo.vod_content) || '暂无简介' }}</p>
+                            <p class="detail-desc text-sm text-zinc-400 leading-relaxed">{{ stripHtml(activeVideo.vod_content) || '暂无简介' }}</p>
                         </aside>
                     </div>
                 </div>
