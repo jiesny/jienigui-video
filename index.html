@@ -667,6 +667,7 @@ const DEFAULT_SOURCES = [
 ];
 const SOURCE_SCHEMA_VERSION = '2026-05-25-yaya';
 const LOW_PRIORITY_SOURCE_IDS = ['source_ffzy', 'source_yaya'];
+const EXTENDED_SCAN_SOURCE_IDS = ['source_yaya'];
 const SEARCH_HISTORY_KEY = 'jng_search_history';
 const MAX_SEARCH_HISTORY = 12;
 const FRIEND_LINKS = [
@@ -1409,15 +1410,17 @@ createApp({
 
         async function localScanSearch(source, keyword, options = {}) {
             const matched = [];
+            const startPage = options.startPage || 1;
             const maxPages = options.maxPages || 2;
-            for (let page = 1; page <= maxPages; page++) {
+            const maxResults = options.maxResults || 20;
+            for (let page = startPage; page < startPage + maxPages; page++) {
                 const data = await fetchList(source, { page, timeoutMs: options.timeoutMs });
                 if (Array.isArray(data.list)) {
                     matched.push(...data.list.filter(item => [item.vod_name, item.vod_sub, item.vod_actor, item.vod_director].some(text => (text || '').includes(keyword))));
                 }
-                if (matched.length >= 20 || page >= (parseInt(data.pagecount) || 1)) break;
+                if (matched.length >= maxResults || page >= (parseInt(data.pagecount) || 1)) break;
             }
-            return { list: matched.slice(0, 20), pagecount: 1 };
+            return { list: matched.slice(0, maxResults), pagecount: 1 };
         }
 
         async function findPlayableSourcesForVideo(video) {
@@ -1578,6 +1581,7 @@ createApp({
             if (!keyword) return;
             const runId = ++searchRunId;
             const searchTimeoutMs = 5000;
+            const extendedScanTimeoutMs = 3500;
             searchQuery.value = keyword;
             lastSearchKeyword.value = keyword;
             addSearchHistory(keyword);
@@ -1593,6 +1597,26 @@ createApp({
             const results = [];
             pushRoute();
 
+            const appendSearchResults = (source, list = []) => {
+                list.forEach(video => results.push({ ...video, source_id: source.id, source_name: source.name }));
+                searchResults.value = groupSearchResults(results);
+            };
+
+            const runExtendedScan = async source => {
+                try {
+                    const data = await localScanSearch(source, keyword, {
+                        startPage: 3,
+                        maxPages: 40,
+                        maxResults: 20,
+                        timeoutMs: extendedScanTimeoutMs
+                    });
+                    if (runId !== searchRunId) return;
+                    appendSearchResults(source, data.list || []);
+                } catch (error) {
+                    console.warn(`[搜索扩展跳过] ${source.name}: ${error.message}`);
+                }
+            };
+
             const searchOneSource = async source => {
                 try {
                     let data;
@@ -1601,13 +1625,13 @@ createApp({
                     } catch (error) {
                         if (error.sourceUnsupported) {
                             data = await localScanSearch(source, keyword, { maxPages: 2, timeoutMs: searchTimeoutMs });
+                            if (EXTENDED_SCAN_SOURCE_IDS.includes(source.id)) runExtendedScan(source);
                         } else {
                             throw error;
                         }
                     }
                     if (runId !== searchRunId) return;
-                    (data.list || []).forEach(video => results.push({ ...video, source_id: source.id, source_name: source.name }));
-                    searchResults.value = groupSearchResults(results);
+                    appendSearchResults(source, data.list || []);
                 } catch (error) {
                     console.warn(`[搜索跳过] ${source.name}: ${error.message}`);
                 } finally {

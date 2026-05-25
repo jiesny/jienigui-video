@@ -120,7 +120,7 @@ XML 源对象加 `format: 'xml'` 作为展示标识；实际解析由 `parseApiR
 - `searchCompletedCount / searchTotalCount / searchPendingSources`：用于展示搜索进度。
 - `fetchList(source, options)`：支持透传 `timeoutMs`。
 - 搜索场景使用 `timeoutMs: 5000`；首页、分类、自检仍使用默认 10 秒。
-- `localScanSearch()`：当源不支持关键词搜索时，最多扫描 2 页，避免拖慢响应。
+- `localScanSearch()`：当源不支持关键词搜索时走本地扫页兜底；普通源最多扫 2 页。鸭鸭资源接口明确返回“暂不支持搜索”，首轮只扫前 2 页参与进度，随后后台从第 3 页起最多再扫 40 页，命中后追加到当前结果，不阻塞首批搜索。
 - `groupSearchResults(items)`：按片名和年份聚合来源。
 - `sortBySourcePriority(items)`：保证非凡、鸭鸭排到来源列表后面。
 
