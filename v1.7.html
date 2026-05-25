@@ -303,8 +303,11 @@
             </nav>
 
             <form @submit.prevent="handleGlobalSearch" class="mobile-search order-3 sm:order-none w-full sm:w-auto sm:ml-auto flex-1 sm:max-w-xl relative min-w-0">
-                <input ref="searchInputEl" v-model="searchQuery" @focus="showSearchHistory = true" @click="showSearchHistory = true" @input="showSearchHistory = true" @blur="hideSearchHistorySoon" type="text" placeholder="搜索电影、剧集、动漫、演员..."
-                    class="w-full h-10 bg-zinc-900 border border-white/10 rounded-lg pl-4 pr-12 text-sm outline-none focus:border-rose-500 placeholder-zinc-500">
+                <button v-if="searchHistory.length" type="button" @mousedown.prevent="toggleSearchHistory" class="absolute left-1 top-1 z-10 w-8 h-8 rounded-lg text-zinc-500 hover:text-rose-300 hover:bg-white/10 transition" title="搜索记录">
+                    <i class="fa-solid fa-clock-rotate-left text-sm"></i>
+                </button>
+                <input ref="searchInputEl" v-model="searchQuery" @focus="showSearchHistory = false" @input="handleSearchInput" @blur="hideSearchHistorySoon" type="text" placeholder="搜索电影、剧集、动漫、演员..."
+                    :class="['w-full h-10 bg-zinc-900 border border-white/10 rounded-lg pr-12 text-sm outline-none focus:border-rose-500 placeholder-zinc-500', searchHistory.length ? 'pl-10' : 'pl-4']">
                 <button class="absolute right-1 top-1 w-8 h-8 rounded-lg bg-rose-600 hover:bg-rose-500 transition" title="搜索">
                     <i class="fa-solid fa-magnifying-glass text-sm"></i>
                 </button>
@@ -1573,6 +1576,16 @@ createApp({
             saveSearchHistory();
         }
 
+        function toggleSearchHistory() {
+            if (!searchHistory.value.length) return;
+            showSearchHistory.value = !showSearchHistory.value;
+            nextTick(() => searchInputEl.value?.focus());
+        }
+
+        function handleSearchInput() {
+            showSearchHistory.value = false;
+        }
+
         function hideSearchHistorySoon() {
             setTimeout(() => showSearchHistory.value = false, 140);
         }
@@ -1964,7 +1977,7 @@ createApp({
             playLoading, toast, hotKeywords, proxies: PROXIES, selectedProxyId, themes: THEMES, friendLinks: FRIEND_LINKS, currentTheme, currentThemeName,
             sourceHealth, sourceCheckingAll, sourceStatusSummary,
             handleGlobalSearch, quickSearch, goHome, openFavorites, openSettings, closeSettings, setSmartFilter, filterButtonClass, saveProxy, setTheme,
-            useSearchHistory, removeSearchHistory, clearSearchHistory, hideSearchHistorySoon,
+            useSearchHistory, removeSearchHistory, clearSearchHistory, toggleSearchHistory, handleSearchInput, hideSearchHistorySoon,
             checkAllSources, sourceStatusClass, sourceStatusIcon, sourceStatusText, openCategory, openCategoryByKey,
             openTopCategory, handleSourceSwitch, changePage, openSearchResult, openDetailFromVideo, openAggregatedDetail, selectDetailSource,
             playEpisode, closeDetail, isFavorited, toggleFavorite, stripHtml, getPosterUrl, handlePosterError, findSource
