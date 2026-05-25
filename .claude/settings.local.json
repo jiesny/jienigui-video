@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Copy-Item -LiteralPath \"d:\\\\项目资料\\\\杰尼龟影视\\\\index.html\" -Destination \"d:\\\\项目资料\\\\杰尼龟影视\\\\v1.7.html\")",
+      "Bash(git -C \"d:/项目资料/杰尼龟影视\" diff index.html)",
+      "Bash(git -C \"d:/项目资料/杰尼龟影视\" add index.html v1.7.html)",
+      "Bash(git -C d:/项目资料/杰尼龟影视 commit -m 'Stabilize detail sidebar scrollbar gutter to prevent horizontal overflow')",
+      "Bash(git -C \"d:/项目资料/杰尼龟影视\" push)"
+    ]
+  }
+}
