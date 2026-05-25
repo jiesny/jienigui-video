@@ -220,11 +220,13 @@
         body .text-zinc-400, body .text-zinc-300 { color: var(--text-muted) !important; }
         .app-shell {
             width: min(1280px, calc(100vw - 24px));
+            max-width: 100%;
             margin-left: auto;
             margin-right: auto;
+            overflow-x: hidden;
         }
         @media (min-width: 640px) {
-            .app-shell { width: min(1280px, calc(100vw - 32px)); }
+            .app-shell { width: min(1280px, calc(100vw - 32px)); max-width: 100%; overflow-x: hidden; }
         }
         .safe-scroll-x { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; max-width: 100%; scrollbar-width: none; }
         .safe-scroll-x::-webkit-scrollbar { display: none; }
