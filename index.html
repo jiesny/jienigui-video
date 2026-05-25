@@ -97,12 +97,55 @@
             --text-main: #fff7ed;
             --text-muted: #fed7aa;
         }
+        body[data-theme="light"] {
+            --app-bg: #f6f7fb;
+            --panel-bg: #ffffff;
+            --soft-bg: #eef1f6;
+            --border-color: rgba(15, 23, 42, .12);
+            --accent: #e11d48;
+            --accent-hover: #be123c;
+            --accent-soft: rgba(225, 29, 72, .12);
+            --text-main: #0f172a;
+            --text-muted: #475569;
+        }
+        body[data-theme="glass"] {
+            --app-bg: #08111f;
+            --panel-bg: rgba(12, 18, 30, .58);
+            --soft-bg: rgba(255, 255, 255, .1);
+            --border-color: rgba(255, 255, 255, .2);
+            --accent: #e11d48;
+            --accent-hover: #fb7185;
+            --accent-soft: rgba(251, 113, 133, .18);
+            --text-main: #f8fafc;
+            --text-muted: #cbd5e1;
+        }
         body {
             background: var(--app-bg);
             color: var(--text-main);
             transition: background-color .2s ease, color .2s ease;
         }
         body .nav-glass { background: color-mix(in srgb, var(--app-bg) 86%, transparent); }
+        body[data-theme="glass"]::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background:
+                radial-gradient(circle at 18% 12%, rgba(225, 29, 72, .24), transparent 32%),
+                radial-gradient(circle at 82% 20%, rgba(8, 145, 178, .22), transparent 30%),
+                linear-gradient(135deg, #050815, #101827 48%, #160b15);
+        }
+        body[data-theme="glass"] .nav-glass,
+        body[data-theme="glass"] .bg-zinc-950,
+        body[data-theme="glass"] .bg-zinc-900,
+        body[data-theme="glass"] .detail-panel {
+            backdrop-filter: blur(20px) saturate(1.25);
+            -webkit-backdrop-filter: blur(20px) saturate(1.25);
+        }
+        body[data-theme="light"] .text-white,
+        body[data-theme="light"] .hover\:text-white:hover { color: #0f172a !important; }
+        body[data-theme="light"] .bg-black\/70 { background-color: rgba(255, 255, 255, .82) !important; }
+        body[data-theme="light"] .text-zinc-100 { color: #0f172a !important; }
         body .bg-zinc-950 { background-color: var(--panel-bg) !important; }
         body .bg-zinc-900 { background-color: var(--soft-bg) !important; }
         body .border-white\/10 { border-color: var(--border-color) !important; }
@@ -125,14 +168,28 @@
         }
         .safe-scroll-x { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; max-width: 100%; scrollbar-width: none; }
         .safe-scroll-x::-webkit-scrollbar { display: none; }
-        .detail-shell { max-width: 72rem; margin-left: auto; margin-right: auto; min-height: 100dvh; padding: 1rem; display: flex; align-items: center; }
-        .detail-panel { width: 100%; border-radius: .5rem; border: 1px solid var(--border-color); background: var(--panel-bg); box-shadow: 0 25px 50px -12px rgba(0,0,0,.75); overflow: hidden; }
-        .player-frame { background: #000; aspect-ratio: 16 / 9; min-height: 260px; position: relative; }
+        .detail-shell { width: min(1680px, calc(100vw - 64px)); margin-left: auto; margin-right: auto; min-height: 100dvh; padding: 1rem 0; display: flex; align-items: center; }
+        .detail-panel { width: 100%; max-height: calc(100dvh - 32px); border-radius: .5rem; border: 1px solid var(--border-color); background: var(--panel-bg); box-shadow: 0 25px 50px -12px rgba(0,0,0,.75); overflow: hidden; }
+        .detail-grid { display: grid !important; min-height: min(76dvh, 820px); }
+        .player-frame { background: #000; position: relative; min-height: 360px; height: min(76dvh, 820px); }
         .detail-side { padding: 1.25rem; max-height: 82vh; overflow-y: auto; }
+        @media (min-width: 1024px) {
+            .detail-grid { grid-template-columns: minmax(0, 1fr) 360px !important; }
+            .detail-side { max-height: min(76dvh, 820px); }
+        }
+        @media (min-width: 1440px) {
+            .detail-grid { grid-template-columns: minmax(0, 1fr) 380px !important; }
+        }
+        @media (max-width: 639px) {
+            .mobile-header-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; }
+            .mobile-header-row .site-brand-text { display: none; }
+            .mobile-search { order: 1 !important; width: auto; min-width: 0; margin-left: 0; }
+            .mobile-settings { order: 2 !important; margin-left: 0; }
+        }
         @media (max-width: 1023px) and (orientation: portrait) {
             .detail-shell { width: 100vw; min-height: 100dvh; padding: 0; display: block; }
-            .detail-panel { min-height: 100dvh; border-radius: 0; border-left: 0; border-right: 0; overflow: visible; }
-            .detail-grid { display: block; }
+            .detail-panel { min-height: 100dvh; max-height: none; border-radius: 0; border-left: 0; border-right: 0; overflow: visible; }
+            .detail-grid { display: block !important; }
             .player-frame {
                 position: sticky;
                 top: 0;
@@ -154,12 +211,12 @@
 <body data-theme="midnight" class="text-zinc-100 selection:bg-rose-500 selection:text-white">
 <div id="app" class="min-h-screen">
     <header class="sticky top-0 z-40 nav-glass border-b border-white/10">
-        <div class="app-shell py-3 sm:h-16 sm:py-0 flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4">
+        <div class="app-shell mobile-header-row py-3 sm:h-16 sm:py-0 flex flex-wrap sm:flex-nowrap items-center gap-3 sm:gap-4">
             <button @click="goHome" class="flex items-center gap-2 shrink-0 min-w-0">
                 <span class="w-9 h-9 rounded-lg bg-rose-600 flex items-center justify-center shadow-lg shadow-rose-900/30">
                     <i class="fa-solid fa-clapperboard"></i>
                 </span>
-                <span class="font-black text-base sm:text-lg tracking-wide whitespace-nowrap">杰尼龟影视</span>
+                <span class="site-brand-text font-black text-base sm:text-lg tracking-wide whitespace-nowrap">杰尼龟影视</span>
             </button>
 
             <nav class="hidden lg:flex items-center gap-1 text-sm text-zinc-400">
@@ -169,7 +226,7 @@
                 </button>
             </nav>
 
-            <form @submit.prevent="handleGlobalSearch" class="order-3 sm:order-none w-full sm:w-auto sm:ml-auto flex-1 sm:max-w-xl relative min-w-0">
+            <form @submit.prevent="handleGlobalSearch" class="mobile-search order-3 sm:order-none w-full sm:w-auto sm:ml-auto flex-1 sm:max-w-xl relative min-w-0">
                 <input ref="searchInputEl" v-model="searchQuery" type="text" placeholder="搜索电影、剧集、动漫、演员..."
                     class="w-full h-10 bg-zinc-900 border border-white/10 rounded-lg pl-4 pr-12 text-sm outline-none focus:border-rose-500 placeholder-zinc-500">
                 <button class="absolute right-1 top-1 w-8 h-8 rounded-lg bg-rose-600 hover:bg-rose-500 transition" title="搜索">
@@ -180,7 +237,7 @@
             <button @click="openFavorites" class="hidden sm:flex h-10 px-3 rounded-lg bg-zinc-900 border border-white/10 items-center gap-2 text-sm text-zinc-300 hover:text-white">
                 <i class="fa-solid fa-heart text-rose-500"></i> 收藏
             </button>
-            <button @click="openSettings" class="ml-auto sm:ml-0 h-10 w-10 shrink-0 rounded-lg bg-zinc-900 border border-white/10 text-zinc-300 hover:text-white" title="站点设置">
+            <button @click="openSettings" class="mobile-settings ml-auto sm:ml-0 h-10 w-10 shrink-0 rounded-lg bg-zinc-900 border border-white/10 text-zinc-300 hover:text-white" title="站点设置">
                 <i class="fa-solid fa-sliders"></i>
             </button>
         </div>
@@ -364,7 +421,7 @@
                     <button @click="closeDetail" class="absolute right-4 top-4 z-10 w-9 h-9 rounded-lg bg-black/70 hover:bg-zinc-800">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
-                    <div class="detail-grid grid grid-cols-1 lg:grid-cols-[1fr_380px]">
+                    <div class="detail-grid grid grid-cols-1">
                         <div class="player-frame">
                             <video ref="videoPlayer" controls class="w-full h-full object-contain bg-black"></video>
                             <div v-if="playLoading" class="absolute inset-0 flex items-center justify-center bg-black/70 text-zinc-300 text-sm">
@@ -498,7 +555,9 @@ const THEMES = [
     { id: 'midnight', name: '暗夜玫瑰', desc: '默认深色观影界面', swatch: 'linear-gradient(135deg, #09090b, #e11d48)' },
     { id: 'ocean', name: '深海蓝', desc: '冷色低亮度主题', swatch: 'linear-gradient(135deg, #06131f, #06b6d4)' },
     { id: 'forest', name: '松林绿', desc: '柔和绿色主题', swatch: 'linear-gradient(135deg, #07130d, #22c55e)' },
-    { id: 'ember', name: '暖影橙', desc: '暖色高对比主题', swatch: 'linear-gradient(135deg, #150b08, #f97316)' }
+    { id: 'ember', name: '暖影橙', desc: '暖色高对比主题', swatch: 'linear-gradient(135deg, #150b08, #f97316)' },
+    { id: 'light', name: '白色主题', desc: '明亮清爽界面', swatch: 'linear-gradient(135deg, #ffffff, #e11d48)' },
+    { id: 'glass', name: '透明玻璃', desc: '半透明玻璃质感', swatch: 'linear-gradient(135deg, rgba(255,255,255,.22), rgba(225,29,72,.55))' }
 ];
 
 const STANDARD_CATEGORIES = [
