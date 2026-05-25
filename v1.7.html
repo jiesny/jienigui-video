@@ -229,8 +229,8 @@
         .safe-scroll-x { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; max-width: 100%; scrollbar-width: none; }
         .safe-scroll-x::-webkit-scrollbar { display: none; }
         .detail-overlay { overscroll-behavior: contain; overflow: hidden auto; }
-        .detail-shell { width: min(1680px, calc(100vw - 64px)); max-width: 100%; margin-left: auto; margin-right: auto; min-height: 100dvh; padding: 1rem 0; display: flex; align-items: center; overflow-x: hidden; }
-        .detail-panel { width: 100%; max-width: 100%; max-height: calc(100dvh - 32px); border-radius: .5rem; border: 1px solid var(--border-color); background: var(--panel-bg); box-shadow: 0 25px 50px -12px rgba(0,0,0,.75); overflow: hidden; }
+        .detail-shell { width: min(1680px, calc(100vw - 64px)); max-width: 100%; margin-left: auto; margin-right: auto; min-height: 100dvh; padding: 1rem 0; display: flex; align-items: center; overflow: hidden; }
+        .detail-panel { width: 100%; max-width: 100%; min-width: 0; max-height: calc(100dvh - 32px); border-radius: .5rem; border: 1px solid var(--border-color); background: var(--panel-bg); box-shadow: 0 25px 50px -12px rgba(0,0,0,.75); overflow: hidden; }
         .detail-panel * { min-width: 0; }
         .detail-grid { display: grid !important; min-height: min(76dvh, 820px); width: 100%; max-width: 100%; overflow: hidden; }
         .player-frame { background: #000; position: relative; min-height: 360px; height: min(76dvh, 820px); width: 100%; max-width: 100%; overflow: hidden; }
