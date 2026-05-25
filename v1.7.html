@@ -1052,7 +1052,19 @@ createApp({
             event.target.src = FALLBACK_POSTER;
         }
 
-        async function fetchWithFallback(targetUrl) {
+        function parseApiResponse(text) {
+            const trimmed = text.trim();
+            if (/^<!doctype html/i.test(trimmed) || /^<html[\s>]/i.test(trimmed) || /403 Forbidden|Attention Required|Cloudflare/i.test(trimmed.slice(0, 800))) {
+                throw new Error('代理返回错误页面');
+            }
+            const data = trimmed.startsWith('<') ? parseXmlData(trimmed) : JSON.parse(trimmed);
+            if (!data || (!Array.isArray(data.list) && !Array.isArray(data.class))) {
+                throw new Error('接口返回格式异常');
+            }
+            return data;
+        }
+
+        async function fetchWithFallback(targetUrl, options = {}) {
             const currentProxyId = selectedProxyId.value || localStorage.getItem('my_cms_proxy') || 'allorigins';
             const queue = [
                 ...PROXIES.filter(proxy => proxy.id === currentProxyId),
@@ -1072,7 +1084,10 @@ createApp({
                         err.sourceUnsupported = true;
                         throw err;
                     }
-                    const data = text.trim().startsWith('<') ? parseXmlData(text) : JSON.parse(text);
+                    const data = parseApiResponse(text);
+                    if (options.requireNonEmptyList && (!Array.isArray(data.list) || data.list.length === 0)) {
+                        throw new Error('未返回影片列表');
+                    }
                     localStorage.setItem('my_cms_proxy', proxy.id);
                     return data;
                 } catch (error) {
@@ -1190,7 +1205,9 @@ createApp({
             const params = { ac: 'detail', pg: String(options.page || 1) };
             if (options.categoryId) params.t = options.categoryId;
             if (options.keyword) params.wd = options.keyword;
-            return normalizeApiData(await fetchWithFallback(apiUrl(source.url, params)), source);
+            return normalizeApiData(await fetchWithFallback(apiUrl(source.url, params), {
+                requireNonEmptyList: !!options.requireNonEmpty
+            }), source);
         }
 
         async function fetchStandardCategoryList(source, standardCategory, page = 1) {
@@ -1384,9 +1401,8 @@ createApp({
         async function checkSourceHealth(source) {
             sourceHealth[source.id] = { status: 'checking', message: '正在请求采集通道...' };
             try {
-                const data = await fetchList(source, { page: 1 });
+                const data = await fetchList(source, { page: 1, requireNonEmpty: true });
                 const count = Array.isArray(data?.list) ? data.list.length : 0;
-                if (!count) throw new Error('未返回影片列表');
                 sourceHealth[source.id] = {
                     status: 'ok',
                     count,
