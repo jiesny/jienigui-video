@@ -91,7 +91,7 @@ const DEFAULT_SOURCES = [...]
 | 优先级 | 名称 | ID | 格式 | 说明 |
 | --- | --- | --- | --- | --- |
 | 1 | 电影天堂资源 | `source_dytt` | XML | 高优先级 |
-| 2 | 优质资源库 | `source_yzzy` | XML | 高优先级 |
+| 2 | 优质资源库 | `source_yzzy` | JSON | 高优先级，使用 `inc/apijson.php`，可返回完整播放地址 |
 | 3 | 如意资源 | `source_ryzy` | XML | 高优先级 |
 | 4 | 西瓜资源 | `source_xigua` | JSON | 高优先级 |
 | 5 | 非凡资源 | `source_ffzy` | JSON | 低优先级，播放约 6 分钟有广告 |
