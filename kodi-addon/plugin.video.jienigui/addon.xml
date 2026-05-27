@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<addon id="plugin.video.jienigui"
+       name="杰尼龟影视"
+       version="1.0.0"
+       provider-name="jienigui">
+    <requires>
+        <import addon="xbmc.python" version="3.0.0"/>
+    </requires>
+    <extension point="xbmc.python.pluginsource"
+               library="main.py">
+        <provides>video</provides>
+    </extension>
+    <extension point="xbmc.addon.metadata">
+        <summary lang="zh_CN">杰尼龟影视 - 多源聚合影视</summary>
+        <description lang="zh_CN">
+            聚合电影天堂、优质资源、如意资源、西瓜资源、非凡资源、鸭鸭资源等共 6 个采集站。
+            支持分类浏览、分页、搜索。兼容遥控器操控。
+        </description>
+        <platform>all</platform>
+        <license>MIT</license>
+    </extension>
+</addon>

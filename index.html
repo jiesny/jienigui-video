@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -247,14 +247,13 @@
         }
         .safe-scroll-x { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; max-width: 100%; scrollbar-width: none; }
         .safe-scroll-x::-webkit-scrollbar { display: none; }
-        .detail-overlay { overscroll-behavior: contain; overflow: hidden auto; }
+        .detail-overlay { overscroll-behavior: contain; overflow: hidden; }
         .detail-shell { width: min(1680px, calc(100vw - 64px)); max-width: 100%; margin-left: auto; margin-right: auto; min-height: 100dvh; padding: 1rem 0; display: flex; align-items: center; overflow: hidden; }
         .detail-panel { width: 100%; max-width: 100%; min-width: 0; max-height: calc(100dvh - 32px); border-radius: .5rem; border: 1px solid var(--border-color); background: var(--panel-bg); box-shadow: 0 25px 50px -12px rgba(0,0,0,.75); overflow: hidden; }
         .detail-panel * { min-width: 0; }
         .detail-grid { display: grid !important; min-height: min(76dvh, 820px); width: 100%; max-width: 100%; overflow: hidden; }
         .player-frame { background: #000; position: relative; min-height: 360px; height: min(76dvh, 820px); width: 100%; max-width: 100%; overflow: hidden; }
-        .detail-side { padding: 1.25rem; max-height: 82vh; overflow-y: auto; overflow-x: hidden; width: 100%; max-width: 100%; min-width: 0; overflow-wrap: anywhere; scrollbar-width: none; -ms-overflow-style: none; }
-        .detail-side::-webkit-scrollbar { width: 0; height: 0; display: none; }
+        .detail-side { padding: 1.25rem; max-height: 82vh; overflow-y: hidden; overflow-x: hidden; width: 100%; max-width: 100%; min-width: 0; overflow-wrap: anywhere; scrollbar-width: none; -ms-overflow-style: none; }
         .detail-title, .detail-desc { overflow-wrap: anywhere; word-break: break-word; }
         .episode-grid { grid-template-columns: repeat(auto-fit, minmax(min(9rem, 100%), 1fr)); width: 100%; min-width: 0; }
         .episode-grid button { max-width: 100%; }
@@ -529,7 +528,7 @@
                                 <i class="fa-solid fa-spinner animate-spin mr-2"></i> 正在缓冲...
                             </div>
                         </div>
-                        <aside class="detail-side space-y-4">
+                        <aside class="detail-side space-y-4" @wheel="handleDetailSideWheel">
                             <div class="min-w-0">
                                 <div class="text-xs text-rose-300 mb-2">{{ activeVideo.type_name || '影视' }} · {{ activeVideo.vod_remarks || '高清' }}</div>
                                 <h2 class="detail-title text-2xl font-black">{{ activeVideo.vod_name }}</h2>
@@ -671,9 +670,10 @@ const DEFAULT_SOURCES = [
     { id: 'source_ryzy', name: '如意资源', url: 'https://cj.rycjapi.com/api.php/provide/vod/at/xml/', format: 'xml' },
     { id: 'source_xigua', name: '西瓜资源', url: 'https://xgzy.tv/api.php/provide/vod/' },
     { id: 'source_ffzy', name: '非凡资源', url: 'https://api.ffzyapi.com/api.php/provide/vod/' },
-    { id: 'source_yaya', name: '鸭鸭资源', url: 'https://cj.yayazy.net/api.php/provide/vod/' }
+    { id: 'source_yaya', name: '鸭鸭资源', url: 'https://cj.yayazy.net/api.php/provide/vod/' },
+    { id: 'source_bfzy', name: '暴风资源', url: 'https://bfzyapi.com/api.php/provide/vod/' }
 ];
-const SOURCE_SCHEMA_VERSION = '2026-05-25-yaya';
+const SOURCE_SCHEMA_VERSION = '2026-05-27-bfzy';
 const LOW_PRIORITY_SOURCE_IDS = ['source_ffzy', 'source_yaya'];
 const EXTENDED_SCAN_SOURCE_IDS = ['source_yaya'];
 const FRIEND_LINKS = [
@@ -1860,6 +1860,20 @@ createApp({
             if (first) initVideoPlayer(first.url);
         }
 
+        function handleDetailSideWheel(e) {
+            const el = e.currentTarget;
+            if (!el) return;
+            const maxScrollTop = el.scrollHeight - el.clientHeight;
+            if (maxScrollTop <= 0) return;
+            const delta = e.deltaY || e.deltaX;
+            const atTop = el.scrollTop <= 0 && delta < 0;
+            const atBottom = el.scrollTop >= maxScrollTop && delta > 0;
+            if (!atTop && !atBottom) {
+                el.scrollTop += delta;
+                e.preventDefault();
+            }
+        }
+
         function parsePlayUrls(rawUrlStr, sourceId = '') {
             if (!rawUrlStr) return [];
             let groups = rawUrlStr.split('$$$');
@@ -1877,13 +1891,87 @@ createApp({
             }).filter(group => group.episodes.length);
         }
 
+        function cleanM3U8Payload(rawText, manifestUrl) {
+            const lines = rawText.split('\n');
+            const cleanedLines = [];
+            let currentExtinf = null;
+            let mainDomain = '';
+            try { mainDomain = new URL(manifestUrl).hostname; } catch (e) { mainDomain = ''; }
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line.startsWith('#EXTINF:')) {
+                    currentExtinf = line;
+                    continue;
+                }
+                if (line && !line.startsWith('#')) {
+                    let isAd = false;
+                    try {
+                        const segUrl = new URL(line, manifestUrl);
+                        const segHost = segUrl.hostname;
+                        if (mainDomain && segHost !== mainDomain) {
+                            if (/ad|adv|union|gg|pop|click|pstatp|xjq/i.test(segUrl.pathname + segUrl.search)) {
+                                isAd = true;
+                            }
+                        }
+                        if (currentExtinf && /15\.0{6}/.test(currentExtinf)) {
+                            isAd = true;
+                        }
+                    } catch (e) {
+                        if (/ad|adv|union|gg/i.test(line)) isAd = true;
+                    }
+                    if (isAd) {
+                        console.warn('[Ad Blocker] stripped mid-roll ad segment:', line);
+                        currentExtinf = null;
+                        if (cleanedLines.length && cleanedLines[cleanedLines.length - 1] === '#EXT-X-DISCONTINUITY') {
+                            cleanedLines.pop();
+                        }
+                        if (i + 1 < lines.length && lines[i + 1].trim() === '#EXT-X-DISCONTINUITY') {
+                            i++;
+                        }
+                        continue;
+                    }
+                    if (currentExtinf) {
+                        cleanedLines.push(currentExtinf);
+                        currentExtinf = null;
+                    }
+                    cleanedLines.push(line);
+                    continue;
+                }
+                if (currentExtinf) {
+                    cleanedLines.push(currentExtinf);
+                    currentExtinf = null;
+                }
+                cleanedLines.push(line);
+            }
+            return cleanedLines.join('\n');
+        }
+
+        class AdBlockingLoader extends Hls.DefaultConfig.loader {
+            constructor(config) {
+                super(config);
+                const originalLoad = this.load.bind(this);
+                this.load = (context, cfg, callbacks) => {
+                    if (context.type === 'manifest' || context.type === 'level') {
+                        const originalOnSuccess = callbacks.onSuccess;
+                        callbacks.onSuccess = (response, stats, ctx, networkDetails) => {
+                            if (typeof response.data === 'string') {
+                                response.data = cleanM3U8Payload(response.data, ctx.url);
+                            }
+                            originalOnSuccess(response, stats, ctx, networkDetails);
+                        };
+                    }
+                    originalLoad(context, cfg, callbacks);
+                };
+            }
+        }
+
         function initVideoPlayer(url) {
             const video = videoPlayer.value || document.querySelector('video');
             if (!video || !url) return;
             playLoading.value = true;
             if (hls) hls.destroy();
             if (Hls.isSupported()) {
-                hls = new Hls({ maxMaxBufferLength: 30 });
+                hls = new Hls({ maxMaxBufferLength: 30, loader: AdBlockingLoader });
                 hls.loadSource(url);
                 hls.attachMedia(video);
                 hls.on(Hls.Events.MANIFEST_PARSED, () => {
@@ -1991,7 +2079,7 @@ createApp({
             handleGlobalSearch, quickSearch, goHome, openFavorites, openSettings, closeSettings, setSmartFilter, filterButtonClass, saveProxy, setTheme,
             checkAllSources, sourceStatusClass, sourceStatusIcon, sourceStatusText, openCategory, openCategoryByKey,
             openTopCategory, handleSourceSwitch, changePage, openSearchResult, openDetailFromVideo, openAggregatedDetail, selectDetailSource,
-            playEpisode, closeDetail, isFavorited, toggleFavorite, stripHtml, getPosterUrl, handlePosterError, findSource
+            playEpisode, closeDetail, isFavorited, toggleFavorite, stripHtml, getPosterUrl, handlePosterError, findSource, handleDetailSideWheel
         };
     }
 }).mount('#app');

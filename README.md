@@ -27,7 +27,7 @@ http://127.0.0.1:4173/index.html
 常用命令：
 
 ```powershell
-git add index.html v1.7.html README.md HANDOFF.md
+git add index.html README.md HANDOFF.md
 git commit -m "Update site"
 git push
 ```

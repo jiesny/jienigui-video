@@ -40,8 +40,7 @@ http://127.0.0.1:4173/index.html
 提交部署：
 
 ```powershell
-Copy-Item -LiteralPath index.html -Destination v1.7.html
-git add index.html v1.7.html README.md HANDOFF.md
+git add index.html README.md HANDOFF.md
 git commit -m "Your change summary"
 git push
 ```
@@ -57,7 +56,6 @@ Cloudflare Pages 当前绑定 GitHub 仓库；推送到 `main` 后，GitHub Page
 ## 3. 主要文件
 
 - `index.html`：主站点，包含 UI、主题、采集源、聚合、搜索、详情播放、友链入口等逻辑。
-- `v1.7.html`：当前主页面备份，必须和 `index.html` 同步。
 - `.github/workflows/pages.yml`：GitHub Pages 自动部署工作流。
 - `.nojekyll`：避免 GitHub Pages 走 Jekyll 处理。
 - `README.md`：简短项目说明。
@@ -260,12 +258,6 @@ stateFromUrl()
 路由 state 会保存 `scrollTop`，打开详情前先记录 `#app` 滚动位置，关闭详情或浏览器返回后通过 `applyRouteState()` 恢复原位置。新增页面状态时必须同步这些函数，否则浏览器后退/前进会失效。
 
 ## 12. 提交前检查清单
-
-每次改 `index.html` 后必须同步：
-
-```powershell
-Copy-Item -LiteralPath index.html -Destination v1.7.html
-```
 
 语法检查：
 
